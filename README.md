@@ -1,6 +1,6 @@
 # PEPTIDE
 
-**an interactive interpreter for reasoning about peptide MS/MS fragmentation.**
+an interactive interpreter for reasoning about peptide MS/MS fragmentation.
 
 ![Alt text description](landing_page.png)
 
