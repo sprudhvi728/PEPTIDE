@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PEPTIDE — an interactive MS/MS fragmentation reasoning environment</title>
+
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+
+<style>
+  :root {
+    --bg: #0a0b0d; --bg-2: #0e0f12; --panel: #101114; --raise: #15171b;
+    --line: #1d1f24; --line-2: #16181c; --text: #edeef1; --muted: #9497a0;
+    --dim: #565a63; --faint: #35383f;
+    --b-ion: #e8695f; --y-ion: #5b9bd5; --loss: #d8a544;
+    --good: #52b788; --warn: #d8a544; --bad: #e8695f; --focus: #6ea8ff;
+    --mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    --sans: "Helvetica Neue", Helvetica, Inter, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  #root { min-height: 100vh; }
+  ::selection { background: rgba(110,168,255,0.25); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #1e2026; border-radius: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .kicker { font-family: var(--mono); font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--dim); }
+  .num { font-variant-numeric: tabular-nums; font-family: var(--mono); }
+
+  /* ============================ HERO ============================ */
+  .hero { min-height: 100vh; display: flex; flex-direction: column; padding: 40px 56px 44px; }
+  .hero-top { display: flex; justify-content: space-between; align-items: center; }
+  .wordmark { font-size: 15px; letter-spacing: 5px; font-weight: 600; }
+  .wordmark .sub { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--dim); margin-top: 3px; font-weight: 400; }
+  .hero-top .enter { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; color: var(--muted); cursor: pointer; padding: 9px 16px; border: 1px solid var(--line); border-radius: 4px; background: none; transition: border-color .25s, color .25s; }
+  .hero-top .enter:hover { border-color: var(--muted); color: var(--text); }
+  .hero-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; max-width: 1100px; margin: 0 auto; width: 100%; }
+  .hero-head { margin-bottom: 30px; }
+  .hero-head h1 { font-size: clamp(40px, 6.4vw, 92px); font-weight: 500; letter-spacing: -0.02em; margin: 0; line-height: 1.0; }
+  .hero-head p { max-width: 640px; margin: 18px 0 0; font-size: clamp(15px, 1.5vw, 19px); line-height: 1.55; color: var(--muted); font-weight: 300; }
+  .stage svg { width: 100%; height: auto; display: block; }
+  .residue-node { transition: transform 1.15s cubic-bezier(.22,.61,.36,1), opacity 1.15s; }
+  .bond { transition: opacity .5s, stroke .3s; }
+  .peak-stick { transition: transform .9s cubic-bezier(.22,.61,.36,1), opacity .6s; transform-box: fill-box; transform-origin: 50% 100%; }
+  .ion-tag { transition: opacity .8s; font-family: var(--mono); }
+  .hero-caption { display: flex; align-items: baseline; gap: 16px; margin-top: 8px; min-height: 22px; }
+  .hero-caption .step { font-family: var(--mono); font-size: 11px; color: var(--dim); letter-spacing: 1px; }
+  .hero-caption .txt { font-size: 15px; color: var(--muted); font-weight: 300; }
+  .hero-caption b.bt { color: var(--b-ion); font-weight: 500; } .hero-caption b.yt { color: var(--y-ion); font-weight: 500; }
+  .hero-foot { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 40px; max-width: 1100px; margin-left: auto; margin-right: auto; width: 100%; }
+  .hero-foot .principles { display: flex; gap: 46px; }
+  .hero-foot .principles div .kicker { margin-bottom: 6px; }
+  .hero-foot .principles div .p { font-size: 13px; color: var(--muted); font-weight: 300; max-width: 200px; line-height: 1.4; }
+  .hero-cta { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; color: var(--text); cursor: pointer; background: none; border: none; padding: 0; display: inline-flex; align-items: center; gap: 8px; }
+  .hero-cta .arw { transition: transform .3s; } .hero-cta:hover .arw { transform: translateX(5px); }
+  .fadein { animation: fade .55s ease both; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* ============================ CHOOSE ============================ */
+  .choose { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; }
+  .choose .ctitle { font-size: clamp(28px, 4vw, 44px); font-weight: 500; letter-spacing: -.02em; margin-bottom: 12px; text-align: center; }
+  .choose .csub { color: var(--muted); font-weight: 300; font-size: 16px; margin-bottom: 42px; text-align: center; max-width: 580px; line-height: 1.55; }
+  .choose-cards { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+  .ccard { width: 330px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 28px; cursor: pointer; transition: border-color .2s, transform .2s; text-align: left; }
+  .ccard:hover { border-color: var(--focus); transform: translateY(-3px); }
+  .ccard .cc-k { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--focus); margin-bottom: 14px; }
+  .ccard h3 { font-size: 22px; font-weight: 500; margin: 0 0 10px; }
+  .ccard p { font-size: 13.5px; color: var(--muted); font-weight: 300; line-height: 1.6; margin: 0 0 18px; }
+  .ccard .cc-go { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; color: var(--text); }
+  .choose .cback { margin-top: 36px; font-family: var(--mono); font-size: 11px; letter-spacing: 1px; color: var(--dim); background: none; border: none; cursor: pointer; }
+  .choose .cback:hover { color: var(--muted); }
+
+  /* ============================ APP ============================ */
+  .app { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+  header.topbar { display: flex; align-items: center; justify-content: space-between; padding: 15px 28px; border-bottom: 1px solid var(--line); gap: 16px; }
+  header .brand { cursor: pointer; } header .brand .wm { font-size: 13px; letter-spacing: 4px; font-weight: 600; }
+  header .flow { display: flex; gap: 4px; align-items: center; font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; color: var(--dim); flex-wrap: wrap; }
+  header .flow span.on { color: var(--muted); } header .flow .sep { color: var(--faint); margin: 0 2px; }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+  .hbtn { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 4px; padding: 6px 11px; cursor: pointer; text-transform: uppercase; }
+  .hbtn:hover { border-color: var(--muted); color: var(--text); }
+  header .clock { font-family: var(--mono); font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+  .layout { display: grid; grid-template-columns: 320px 1fr 410px; overflow: hidden; }
+  .col { overflow-y: auto; }
+  .col.left { border-right: 1px solid var(--line); padding: 26px 24px; }
+  .col.center { padding: 26px 30px; }
+  .col.right { border-left: 1px solid var(--line); padding: 26px 24px; background: var(--bg-2); }
+
+  .stage-label { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .stage-label .n { font-family: var(--mono); font-size: 10px; color: var(--dim); letter-spacing: 1px; }
+  .stage-label .t { font-size: 13px; letter-spacing: 1px; color: var(--text); text-transform: uppercase; font-weight: 500; }
+  .stage-label .q { font-size: 12px; color: var(--dim); font-weight: 300; }
+
+  .field { display: block; margin-bottom: 18px; }
+  .field > .lab { display: block; margin-bottom: 7px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); }
+  .tag { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1px; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; margin-left: 8px; vertical-align: middle; }
+  .tag.req { color: var(--focus); border: 1px solid rgba(110,168,255,.4); }
+  .tag.opt { color: var(--dim); border: 1px solid var(--line); }
+  input[type=text], input[type=number], select, textarea { width: 100%; background: var(--raise); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 10px 11px; font-size: 14px; font-family: inherit; transition: border-color .2s; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--focus); }
+  input.seq { font-family: var(--mono); letter-spacing: 4px; text-transform: uppercase; font-size: 16px; }
+  textarea { font-family: var(--mono); font-size: 12px; resize: vertical; min-height: 128px; line-height: 1.5; }
+  .row { display: flex; gap: 11px; } .row > * { flex: 1; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { padding: 7px 14px; border-radius: 4px; border: 1px solid var(--line); background: var(--raise); color: var(--dim); cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: 1px; user-select: none; transition: all .16s; }
+  .chip.on { background: var(--text); border-color: var(--text); color: #000; }
+  .chip.on.b { background: var(--b-ion); border-color: var(--b-ion); color: #10100f; }
+  .chip.on.y { background: var(--y-ion); border-color: var(--y-ion); color: #0c1116; }
+  .btn { width: 100%; padding: 11px; margin-top: 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--raise); color: var(--muted); font-family: var(--mono); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; transition: all .16s; }
+  .btn:hover { border-color: var(--muted); color: var(--text); }
+  .btn.primary { background: var(--focus); border-color: var(--focus); color: #04121f; font-weight: 600; }
+  .hint { font-size: 11px; color: var(--dim); margin-top: 6px; line-height: 1.5; font-weight: 300; }
+  .err { color: var(--bad); font-size: 12px; margin-top: 8px; font-family: var(--mono); }
+  .method-note { font-size: 12px; color: var(--muted); margin-top: -8px; margin-bottom: 16px; padding: 10px 12px; border-left: 2px solid var(--faint); background: var(--raise); border-radius: 0 4px 4px 0; line-height: 1.5; font-weight: 300; }
+
+  .mode { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; padding: 4px 9px; border-radius: 4px; text-transform: uppercase; white-space: nowrap; }
+  .mode.theo { color: var(--loss); border: 1px solid rgba(216,165,68,.35); background: rgba(216,165,68,.08); }
+  .mode.exp { color: var(--good); border: 1px solid rgba(82,183,136,.35); background: rgba(82,183,136,.08); }
+
+  .block { margin-bottom: 34px; }
+  #spectrum { width: 100%; height: 400px; }
+  .spectrum-sub { font-size: 12px; color: var(--dim); margin-top: 6px; font-weight: 300; }
+  .exportbar { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .xbtn { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); background: var(--raise); border: 1px solid var(--line); border-radius: 4px; padding: 7px 12px; cursor: pointer; }
+  .xbtn:hover { border-color: var(--muted); color: var(--text); }
+  .xbtn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .cov-wrap { user-select: none; }
+  .coverage { display: flex; flex-wrap: wrap; gap: 3px; }
+  .cov-res { position: relative; padding: 20px 3px; min-width: 34px; text-align: center; cursor: pointer; border-radius: 5px; transition: background .18s, box-shadow .18s; }
+  .cov-res:hover { background: var(--raise); }
+  .cov-res.sel { background: rgba(110,168,255,0.10); box-shadow: inset 0 0 0 1px rgba(110,168,255,0.4); }
+  .cov-res.foc { background: rgba(110,168,255,0.08); }
+  .cov-res .aa { font-family: var(--mono); font-size: 19px; font-weight: 500; }
+  .cov-res .idx { font-family: var(--mono); font-size: 9px; color: var(--dim); margin-top: 2px; }
+  .cov-res .btick { position:absolute; top: 7px; right: -2px; height: 13px; border-right: 3px solid var(--b-ion); border-radius: 2px; }
+  .cov-res .ytick { position:absolute; bottom: 7px; left: -2px; height: 13px; border-left: 3px solid var(--y-ion); border-radius: 2px; }
+  .cov-res .cleave { position:absolute; top:2px; bottom:2px; right:-3px; width:2px; background:var(--focus); border-radius:2px; box-shadow:0 0 8px rgba(110,168,255,0.8); animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+  .cov-legend { display:flex; gap:20px; flex-wrap: wrap; font-family: var(--mono); font-size:10px; letter-spacing: .5px; color:var(--dim); margin-top:14px; }
+  .cov-legend .sw-b { color: var(--b-ion); } .cov-legend .sw-y { color: var(--y-ion); }
+  .cov-hint { font-size: 12px; color: var(--muted); margin-top: 12px; font-weight: 300; line-height: 1.5; }
+
+  .inspector { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 20px 22px; min-height: 180px; }
+  .insp-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 14px; display: flex; justify-content: space-between; }
+  .insp-empty { color: var(--dim); font-size: 13px; font-weight: 300; line-height: 1.6; }
+  .insp-title { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
+  .insp-sub { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+  .insp-why { font-size: 14px; line-height: 1.62; color: var(--muted); font-weight: 300; }
+  .insp-why p { margin: 0 0 11px; }
+  .insp-why b { color: var(--text); font-weight: 500; }
+  .insp-why .bc { color: var(--b-ion); } .insp-why .yc { color: var(--y-ion); } .insp-why .lc { color: var(--loss); }
+  .insp-section { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line-2); }
+  .insp-section .h { font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+  .fragdiag svg { width: 100%; height: auto; display: block; }
+  .fd-node { transition: transform .85s cubic-bezier(.22,.61,.36,1), opacity .85s; }
+  .fd-bond { transition: opacity .4s, stroke .3s; }
+  .fd-cap { font-size: 12.5px; color: var(--muted); font-weight: 300; margin-top: 4px; line-height: 1.5; }
+  .reason-list .reason { display: flex; gap: 9px; font-size: 13px; color: var(--muted); padding: 6px 0; font-weight: 300; line-height: 1.5; }
+  .reason-list .reason .mk { color: var(--focus); flex: none; } .reason-list .reason b { color: var(--text); font-weight: 500; }
+
+  .ppmviz { margin: 14px 0 2px; }
+  .ppmviz .axis { position: relative; height: 3px; background: var(--line); border-radius: 2px; margin: 26px 8px 8px; }
+  .ppmviz .tol { position: absolute; top: 0; height: 3px; background: rgba(82,183,136,0.28); border-radius: 2px; }
+  .ppmviz .zero { position: absolute; top: -6px; height: 15px; width: 1px; background: var(--dim); left: 50%; }
+  .ppmviz .mark { position: absolute; top: -5px; width: 11px; height: 11px; border-radius: 50%; transform: translateX(-50%); }
+  .ppmviz .lbl { position: absolute; top: -26px; transform: translateX(-50%); font-family: var(--mono); font-size: 10px; white-space: nowrap; }
+  .ppmviz .ends { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9px; color: var(--dim); margin: 0 4px; }
+  .ppmviz .verdict { font-family: var(--mono); font-size: 11px; margin-top: 12px; line-height:1.5; }
+
+  .anno-item { border-top: 1px solid var(--line-2); padding: 12px 0; } .anno-item:first-child { border-top: none; }
+  .anno-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .anno-head .lab { font-family: var(--mono); font-weight: 600; } .anno-head .ppm { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .anno-desc { font-size: 12.5px; color: var(--muted); margin-top: 4px; font-weight: 300; line-height: 1.5; }
+
+  .tablewrap { max-height: 300px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: var(--mono); }
+  th, td { padding: 6px 9px; text-align: right; border-bottom: 1px solid var(--line-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th { color: var(--dim); font-weight: 500; position: sticky; top: 0; background: var(--panel); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; }
+  td.l, th.l { text-align: left; }
+  tr.b-row td.ion { color: var(--b-ion); font-weight: 600; } tr.y-row td.ion { color: var(--y-ion); font-weight: 600; }
+  tr.frag { cursor: pointer; transition: background .12s; } tr.frag:hover { background: var(--raise); }
+  tr.matched td { color: var(--text); } tr.matched td.dim { color: var(--dim); }
+  tr.contains { background: rgba(110,168,255,0.09); } tr.dimmed { opacity: 0.28; }
+  .loss-tag { color: var(--loss); }
+
+  .verdict-line { padding: 13px 15px; border-radius: 6px; margin-bottom: 22px; font-size: 14px; font-weight: 400; line-height: 1.5; }
+  .verdict-line.good { background: rgba(82,183,136,0.09); color: var(--good); border:1px solid rgba(82,183,136,0.28);}
+  .verdict-line.warn { background: rgba(216,165,68,0.09); color: var(--warn); border:1px solid rgba(216,165,68,0.28);}
+  .verdict-line.bad  { background: rgba(232,105,95,0.09); color: var(--bad); border:1px solid rgba(232,105,95,0.28);}
+  .reading .r { padding: 14px 0; border-top: 1px solid var(--line-2); } .reading .r:first-child { border-top: none; padding-top: 2px; }
+  .reading .q { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 5px; line-height: 1.4; }
+  .reading .vw { font-family: var(--mono); font-size: 13px; letter-spacing: 1px; }
+  .reading .vw.yes { color: var(--good); } .reading .vw.partly { color: var(--warn); } .reading .vw.no { color: var(--bad); }
+  .reading .support { font-size: 12.5px; color: var(--muted); font-weight: 300; margin-top: 4px; line-height: 1.55; }
+  .reading .support .num { color: var(--text); }
+  .review-item { padding: 15px 0; border-top: 1px solid var(--line-2); } .review-item:first-child { border-top: none; padding-top: 2px; }
+  .review-q { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 7px; line-height: 1.4; }
+  .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; }
+  .dot.good { background: var(--good); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); } .dot.info { background: var(--dim); }
+  .review-a { font-size: 13px; line-height: 1.6; color: var(--muted); font-weight: 300; padding-left: 18px; }
+  .review-a .stat { font-family: var(--mono); color: var(--text); }
+  .teach-item, .mentor-item { padding: 15px 0; border-top: 1px solid var(--line-2); }
+  .teach-item:first-child, .mentor-item:first-child { border-top: none; padding-top: 2px; }
+  .teach-q, .mentor-q { font-size: 13.5px; font-weight: 500; color: var(--text); margin-bottom: 6px; line-height: 1.4; }
+  .mentor-q::before { content: "→ "; color: var(--focus); }
+  .teach-a, .mentor-a { font-size: 13px; color: var(--muted); font-weight: 300; line-height: 1.6; }
+  .teach-a b, .mentor-a b { color: var(--text); font-weight: 500; }
+  .conf-meter { display: flex; gap: 5px; margin: 10px 0 14px; }
+  .conf-seg { flex: 1; height: 5px; border-radius: 3px; background: var(--line); }
+  .conf-seg.on.good { background: var(--good); } .conf-seg.on.warn { background: var(--warn); } .conf-seg.on.bad { background: var(--bad); }
+  .conf-text { font-size: 13px; line-height: 1.6; color: var(--muted); font-weight: 300; } .conf-text b { color: var(--text); font-weight: 500; }
+  .copybar { display: flex; gap: 8px; margin: 6px 0 4px; flex-wrap: wrap; }
+  .empty { color: var(--muted); font-size: 13px; padding: 20px; font-weight: 300; line-height: 1.65; border: 1px dashed var(--line); border-radius: 8px; background: var(--panel); }
+  .empty b { color: var(--text); font-weight: 500; }
+
+  /* PTM panel */
+  .ptm { border: 1px dashed var(--line); border-radius: 7px; padding: 15px; }
+  .ptm-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .ptm-head .soon { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--loss); border: 1px solid rgba(216,165,68,.35); padding: 2px 7px; border-radius: 3px; }
+  .ptm-row { display: flex; align-items: center; gap: 9px; padding: 8px 0; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line-2); }
+  .ptm-row:first-of-type { border-top: none; }
+  .ptm-row input[type=checkbox] { width: auto; accent-color: var(--focus); }
+  .ptm-row .nm { color: var(--text); font-weight: 500; }
+  .ptm-row .tg { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .ptm-row .d { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .ptm-foot { font-size: 11.5px; color: var(--dim); font-weight: 300; margin-top: 10px; line-height: 1.5; }
+
+  .limits { font-size: 12.5px; color: var(--muted); font-weight: 300; line-height: 1.65; padding-left: 18px; margin: 0; }
+  .limits li { margin-bottom: 7px; } .limits li b { color: var(--text); font-weight: 500; }
+
+  /* Guided tour spotlight + bubble */
+  .tour-ring { position: fixed; border: 2px solid var(--focus); border-radius: 8px; box-shadow: 0 0 0 4000px rgba(6,7,9,0.66), 0 0 22px rgba(110,168,255,.5); pointer-events: none; z-index: 900; transition: left .32s, top .32s, width .32s, height .32s; }
+  .tour-bubble { position: fixed; z-index: 901; background: #14161b; border: 1px solid var(--focus); border-radius: 10px; padding: 17px 19px; box-shadow: 0 14px 44px rgba(0,0,0,.6); }
+  .tb-step { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--focus); margin-bottom: 8px; }
+  .tb-title { font-size: 16px; font-weight: 600; margin-bottom: 7px; }
+  .tb-body { font-size: 13.5px; color: var(--muted); font-weight: 300; line-height: 1.6; }
+  .tb-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
+  .tb-skip { background: none; border: none; color: var(--dim); font-family: var(--mono); font-size: 11px; cursor: pointer; }
+  .tb-skip:hover { color: var(--muted); }
+  .tb-nav { display: flex; gap: 8px; }
+  .tb-btn { background: var(--raise); border: 1px solid var(--line); color: var(--text); font-family: var(--mono); font-size: 11px; padding: 6px 14px; border-radius: 5px; cursor: pointer; }
+  .tb-btn.primary { background: var(--focus); border-color: var(--focus); color: #04121f; font-weight: 600; }
+
+  @media (max-width: 1150px) {
+    .layout { grid-template-columns: 1fr; height: auto; overflow: auto; } .app { height: auto; }
+    .col.left, .col.right { border: none; border-bottom: 1px solid var(--line); }
+    .col.left, .col.right, .col.center { max-height: none; }
+    .hero-foot { flex-direction: column; gap: 24px; align-items: flex-start; }
+    header.topbar { flex-wrap: wrap; }
+    header .flow { display: none; }
+    .tour-bubble { left: 12px !important; right: 12px; width: auto !important; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react,typescript">
+const { useState, useMemo, useEffect, useRef } = React;
+
+/* =================================================================== */
+/*  masscalc — mass calculation utility "module"                       */
+/* =================================================================== */
+
+/* ---- Fundamental constants (monoisotopic masses, in daltons) ------ */
+const PROTON  = 1.00727646688;   // bare H+, the charge carrier
+const H2O     = 18.0105646863;   // added to y ions and to the peptide neutral mass
+const NH3     = 17.0265491015;   // neutral loss from K, R, Q, N
+const H3PO4   = 97.9768958;      // loss from phospho-S/T/Y (reserved for PTM support)
+const NEUTRON = 1.0033548;       // 13C-12C spacing of the isotope envelope
+
+/* ---- Monoisotopic RESIDUE masses (residue = amino acid − H2O) ------ */
+const RESIDUE = {
+  G: 57.02146372, A: 71.03711379, S: 87.03202841, P: 97.05276385,
+  V: 99.06841392, T: 101.04767847, C: 103.00918496, L: 113.08406398,
+  I: 113.08406398, N: 114.04292744, D: 115.02694302, Q: 128.05857751,
+  K: 128.09496302, E: 129.04259309, M: 131.04048509, H: 137.05891186,
+  F: 147.06841392, R: 156.10111102, Y: 163.06332853, W: 186.07931295,
+};
+const AA_NAME = { G:"glycine",A:"alanine",S:"serine",P:"proline",V:"valine",T:"threonine",C:"cysteine",L:"leucine",I:"isoleucine",N:"asparagine",D:"aspartate",Q:"glutamine",K:"lysine",E:"glutamate",M:"methionine",H:"histidine",F:"phenylalanine",R:"arginine",Y:"tyrosine",W:"tryptophan" };
+const H2O_RESIDUES = new Set(["S","T","E","D"]);
+const NH3_RESIDUES = new Set(["K","R","Q","N"]);
+const BASIC = new Set(["R","K","H"]);
+
+/* ---- PTM registry (architecture only; NOT applied to calculations in v1) ----
+   Each modification declares its monoisotopic delta and the residue(s) it targets.
+   The mass functions read residue masses through residueMass(), which is the single
+   extension point where a per-site delta would be added once PTMs are enabled.      */
+const MODIFICATIONS = [
+  { id:"ox",  name:"Oxidation",       target:"M",     delta:15.9949146, note:"+O on methionine" },
+  { id:"cam", name:"Carbamidomethyl", target:"C",     delta:57.0214637, note:"iodoacetamide, fixed on Cys" },
+  { id:"ph",  name:"Phosphorylation", target:"S/T/Y", delta:79.9663305, note:"labile; adds H3PO4-neutral-loss logic" },
+  { id:"ac",  name:"Acetyl (N-term)", target:"N-term",delta:42.0105646, note:"protein / peptide N-terminus" },
+  { id:"cus", name:"Custom mass shift",target:"any",   delta:null,       note:"user-defined Δmass" },
+];
+
+/* Extension point: returns the mass of a residue, optionally shifted by a modification.
+   v1 applies no modifications, so this is the identity of the base residue mass. */
+function residueMass(aa /*, siteMod */) { return RESIDUE[aa]; }
+
+function parsePeptide(seq) {
+  const clean = (seq || "").toUpperCase().replace(/[\s\-\.]/g, "");
+  const residues = clean.split("");
+  for (const r of residues) if (!(r in RESIDUE)) throw new Error("Unknown amino acid: '" + r + "'. Use one-letter codes for the 20 standard residues.");
+  if (residues.length < 2) throw new Error("Enter at least 2 residues.");
+  return residues;
+}
+function calculateMz(neutralMass, charge) { return (neutralMass + charge * PROTON) / charge; }
+function calculateBIons(residues) {
+  const ions = []; let sum = 0;
+  for (let i = 0; i < residues.length - 1; i++) { sum += residueMass(residues[i]);
+    ions.push({ type: "b", position: i + 1, seq: residues.slice(0, i + 1).join(""), neutralMass: sum }); }
+  return ions;
+}
+function calculateYIons(residues) {
+  const ions = []; let sum = 0; const n = residues.length;
+  for (let j = 0; j < n - 1; j++) { sum += residueMass(residues[n - 1 - j]);
+    ions.push({ type: "y", position: j + 1, seq: residues.slice(n - 1 - j).join(""), neutralMass: sum + H2O }); }
+  return ions;
+}
+function calculateNeutralLosses(ion) {
+  const variants = []; const chars = new Set(ion.seq.split(""));
+  if ([...H2O_RESIDUES].some((r) => chars.has(r))) variants.push({ loss: "-H2O", neutralMass: ion.neutralMass - H2O });
+  if ([...NH3_RESIDUES].some((r) => chars.has(r))) variants.push({ loss: "-NH3", neutralMass: ion.neutralMass - NH3 });
+  return variants;
+}
+function buildFragments(residues, opts) {
+  const base = [];
+  if (opts.types.b) base.push(...calculateBIons(residues));
+  if (opts.types.y) base.push(...calculateYIons(residues));
+  const fragments = [];
+  for (const ion of base) {
+    const forms = [{ loss: "", neutralMass: ion.neutralMass }, ...calculateNeutralLosses(ion)];
+    for (const form of forms) for (const z of opts.charges) {
+      fragments.push({ type: ion.type, position: ion.position, seq: ion.seq, charge: z, loss: form.loss,
+        neutralMass: form.neutralMass, mz: calculateMz(form.neutralMass, z),
+        label: ion.type + ion.position + (form.loss || "") + (z > 1 ? " " + z + "+" : ""),
+        key: ion.type + ion.position + form.loss + "_" + z });
+    }
+  }
+  return fragments;
+}
+function ppm(obs, theo) { return ((obs - theo) / theo) * 1e6; }
+function matchObservedPeaks(fragments, peaks, tol) {
+  const frags = fragments.map((f) => ({ ...f, match: null }));
+  const annotatedPeaks = peaks.map((p, i) => ({ ...p, idx: i, annotations: [] }));
+  for (const f of frags) {
+    let best = null;
+    for (let i = 0; i < annotatedPeaks.length; i++) {
+      const p = annotatedPeaks[i];
+      const within = tol.unit === "ppm" ? Math.abs(ppm(p.mz, f.mz)) <= tol.value : Math.abs(p.mz - f.mz) <= tol.value;
+      if (!within) continue;
+      const err = ppm(p.mz, f.mz);
+      if (best === null || Math.abs(err) < Math.abs(best.err)) best = { i, err, peak: p };
+    }
+    if (best) {
+      f.match = { mz: best.peak.mz, intensity: best.peak.intensity, ppm: best.err };
+      annotatedPeaks[best.i].annotations.push({ label: f.label, type: f.type, loss: f.loss, ppm: best.err, position: f.position, charge: f.charge, seq: f.seq, mz: f.mz });
+    }
+  }
+  return { frags, annotatedPeaks };
+}
+function longestLadder(frags, type, nRes) {
+  const matched = new Set();
+  for (const f of frags) if (f.type === type && f.match) matched.add(f.position);
+  let best = 0, run = 0;
+  for (let i = 1; i <= nRes; i++) { if (matched.has(i)) { run++; best = Math.max(best, run); } else run = 0; }
+  return best;
+}
+function calculateCoverage(frags, nRes) {
+  const bMatched = new Set(), yMatched = new Set();
+  for (const f of frags) if (f.match) (f.type === "b" ? bMatched : yMatched).add(f.position);
+  let covered = 0; const sites = Math.max(nRes - 1, 1);
+  for (let i = 1; i <= nRes - 1; i++) if (bMatched.has(i) || yMatched.has(nRes - i)) covered++;
+  const bAfter = new Set([...bMatched]);
+  const yBefore = new Set([...yMatched].map((p) => nRes - p));
+  return { coverage: covered / sites, covered, sites, bAfter, yBefore, bMatched, yMatched };
+}
+function median(arr) {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a, b) => a - b); const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+function computeMetrics(frags, annotatedPeaks, nRes) {
+  const matchedPeaks = annotatedPeaks.filter((p) => p.annotations.length > 0);
+  const totalInt = annotatedPeaks.reduce((s, p) => s + p.intensity, 0) || 1;
+  const explainedInt = matchedPeaks.reduce((s, p) => s + p.intensity, 0);
+  const ppmErrors = matchedPeaks.map((p) => p.annotations[0].ppm);
+  const cov = calculateCoverage(frags, nRes);
+  const bInt = annotatedPeaks.filter(p => p.annotations.some(a => a.type === "b")).reduce((s,p)=>s+p.intensity,0);
+  const yInt = annotatedPeaks.filter(p => p.annotations.some(a => a.type === "y")).reduce((s,p)=>s+p.intensity,0);
+  return { nMatched: matchedPeaks.length, nPeaks: annotatedPeaks.length,
+    pctIntensity: (explainedInt / totalInt) * 100, medianPpm: median(ppmErrors.map(Math.abs)),
+    signedMedianPpm: median(ppmErrors), maxAbsPpm: ppmErrors.length ? Math.max(...ppmErrors.map(Math.abs)) : 0,
+    longestB: longestLadder(frags, "b", nRes), longestY: longestLadder(frags, "y", nRes),
+    coverage: cov.coverage * 100, cov, bInt, yInt, nAmbiguous: annotatedPeaks.filter(p=>p.annotations.length>1).length };
+}
+function fragmentContainsResidue(f, r, n) { return f.type === "b" ? r <= f.position : r >= n - f.position + 1; }
+function annotationContainsResidue(a, r, n) { return a.type === "b" ? r <= a.position : r >= n - a.position + 1; }
+function parseSpectrum(text) {
+  const peaks = [];
+  for (const line of (text || "").split(/\n/)) {
+    const t = line.trim(); if (!t) continue;
+    const parts = t.split(/[,\s]+/).map(Number).filter(x => !isNaN(x));
+    if (parts.length >= 2) peaks.push({ mz: parts[0], intensity: parts[1] });
+    else if (parts.length === 1) peaks.push({ mz: parts[0], intensity: 1 });
+  }
+  return peaks;
+}
+
+/* ---- export / clipboard helpers ---- */
+function downloadText(filename, text, mime) {
+  const blob = new Blob([text], { type: mime || "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function copyText(text) {
+  try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text); return; } } catch(e){}
+  const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch(e){} document.body.removeChild(ta);
+}
+function fragmentsToCSV(frags) {
+  const head = ["Ion","Position","Sequence","Charge","NeutralLoss","TheoreticalMz","ObservedMz","PpmError","Intensity"];
+  const rows = frags.map(f => [f.type + f.position, f.position, f.seq, f.charge, f.loss || "",
+    f.mz.toFixed(4), f.match ? f.match.mz.toFixed(4) : "", f.match ? f.match.ppm.toFixed(2) : "", f.match ? f.match.intensity : ""]);
+  return [head, ...rows].map(r => r.join(",")).join("\n");
+}
+function interpretationSummaryText(result, method, seq) {
+  if (!result.hasSpectrum) return "PEPTIDE — theoretical prediction only\nPeptide: " + seq + "\nNo observed spectrum was provided; the predicted b/y fragment ions are listed but nothing has been matched. Paste an observed spectrum to obtain an experimental interpretation.";
+  const m = result.metrics, c = result.confidence; const L = [];
+  L.push("PEPTIDE — experimental interpretation");
+  L.push("Peptide: " + seq + "  (" + result.residues.length + " residues)   Method: " + method);
+  L.push("Overall confidence: " + c.label);
+  L.push("");
+  result.reading.forEach(r => L.push("- " + r.q + "  " + r.word));
+  L.push("");
+  L.push("Sequence coverage: " + m.coverage.toFixed(0) + "%  (" + m.cov.covered + "/" + m.cov.sites + " backbone bonds)");
+  L.push("Intensity explained: " + m.pctIntensity.toFixed(0) + "%   Peaks matched: " + m.nMatched + "/" + m.nPeaks);
+  L.push("Median |mass error|: " + m.medianPpm.toFixed(1) + " ppm   Longest ladder: b=" + m.longestB + ", y=" + m.longestY);
+  L.push("");
+  L.push(c.text);
+  L.push("");
+  L.push("Generated by PEPTIDE (research prototype). Not a substitute for database search or statistical (FDR) validation.");
+  return L.join("\n");
+}
+function reviewerNotesText(result, seq) {
+  if (!result.review) return "PEPTIDE reviewer notes require an observed spectrum.";
+  const L = ["PEPTIDE — reviewer notes for " + seq, ""];
+  const mark = { good: "[PASS]", warn: "[CAUTION]", bad: "[FAIL]", info: "[NOTE]" };
+  result.review.forEach(it => { L.push((mark[it.level] || "[?]") + " " + it.question); L.push("    " + it.plain); L.push(""); });
+  L.push("Overall: " + result.confidence.label + " — " + result.confidence.text);
+  return L.join("\n");
+}
+
+/* =================================================================== */
+/*  reasoning — the "why", not the "what"                              */
+/* =================================================================== */
+function explainIon(f, residues) {
+  const n = residues.length; const isB = f.type === "b";
+  const bondAfter = isB ? f.position : n - f.position;
+  const leftAA = residues[bondAfter - 1], rightAA = residues[bondAfter];
+  const parts = [];
+  parts.push({ html: <span>
+    A <b className={isB ? "bc" : "yc"}>{f.type}{f.position}</b> ion forms when the backbone amide bond <b>after residue {bondAfter}</b> ({leftAA}{rightAA ? "–" + rightAA : ""}) breaks.
+    {" "}{isB ? <span>The <b>N-terminal</b> half keeps the proton and is seen as <b className="bc">b{f.position}</b> (residues 1–{f.position}, {f.seq}).</span>
+             : <span>The <b>C-terminal</b> half keeps the proton and is seen as <b className="yc">y{f.position}</b> (last {f.position} residues, {f.seq}).</span>}
+  </span> });
+  parts.push({ html: <span>Its neutral mass is {isB ? <span>the sum of its residues (b ions carry no extra water)</span> : <span>the sum of its residues <b>plus one water</b></span>} = <b className="num">{f.neutralMass.toFixed(4)} Da</b>; with {f.charge} proton{f.charge>1?"s":""} that is <b className="num">m/z {f.mz.toFixed(4)}</b>.</span> });
+  if (f.loss) { const which = f.loss === "-H2O" ? "water" : "ammonia"; const from = f.loss === "-H2O" ? "an S/T/E/D side chain" : "a K/R/Q/N side chain";
+    parts.push({ html: <span>This is a <b className="lc">{f.loss}</b> variant — it shed {which} from {from}. Neutral losses confirm a residue is present but add no new sequence coverage.</span> }); }
+  return { parts, matched: f.match, ionType: f.type, bondAfter };
+}
+function whyFragmentMatters(f, residues) {
+  const n = residues.length; const isB = f.type === "b";
+  const bondAfter = isB ? f.position : n - f.position;
+  const leftAA = residues[bondAfter - 1], rightAA = residues[bondAfter];
+  if (f.loss) return <span>On its own a neutral-loss ion is weak evidence for sequence — treat it as corroboration of the intact <b>{f.type}{f.position}</b>, not an independent data point.</span>;
+  return <span>This ion pins down the <b>{leftAA}–{rightAA}</b> junction. Paired with its complement ({isB ? "y" + (n - f.position) : "b" + (n - f.position)}), the two bracket residue {isB ? f.position : bondAfter} from both ends — that agreement is what turns a match into evidence.</span>;
+}
+function peakIntensityReasons(peak, residues, annotatedPeaks, maxInt) {
+  const n = residues.length; const reasons = []; const anns = peak.annotations;
+  if (!anns.length) return reasons;
+  const best = [...anns].sort((a,b)=>Math.abs(a.ppm)-Math.abs(b.ppm))[0];
+  const bondAfter = best.type === "b" ? best.position : n - best.position;
+  const nextAA = residues[bondAfter]; const cterm = residues[n-1];
+  if (nextAA === "P") reasons.push(<span><b>Proline-directed cleavage.</b> The bond just before proline breaks unusually easily — proline's ring rigidifies the backbone and concentrates fragmentation here, a classic source of a dominant peak.</span>);
+  if (best.type === "y" && BASIC.has(cterm)) reasons.push(<span><b>Charge localization.</b> The C-terminal {AA_NAME[cterm]} is basic and sequesters a proton, so this y ion reliably carries charge to the detector.</span>);
+  if (best.type === "b" && [...best.seq].some(c=>BASIC.has(c))) reasons.push(<span><b>Charge localization.</b> A basic residue in the N-terminal portion holds the charge, letting this b ion be detected efficiently.</span>);
+  if (best.loss) reasons.push(<span><b>Neutral loss.</b> This is a {best.loss} product; facile side-chain losses can rival or exceed the intact ion in intensity.</span>);
+  if (peak.intensity >= 0.6 * maxInt) reasons.push(<span><b>Highly favored cleavage.</b> Near the base peak — this backbone position fragments more readily than its neighbours, so the ion accumulates.</span>);
+  else reasons.push(<span><b>Stable fragment.</b> An even-electron ion that survives intact to the detector rather than fragmenting further.</span>);
+  const lower = annotatedPeaks.find(p => Math.abs(p.mz - (peak.mz - NEUTRON/(best.charge||1))) < 0.02 && p.intensity > peak.intensity);
+  if (lower) reasons.push(<span><b>Possibly an isotope.</b> A more intense peak sits ~1 Da lower — check this isn't just the +1 isotope of that ion rather than an independent fragment.</span>);
+  return reasons.slice(0, 4);
+}
+function informativeMissingIon(m, frags, residues) {
+  const n = residues.length; const domType = m.longestY >= m.longestB ? "y" : "b";
+  const matched = new Set();
+  for (const f of frags) if (f.type === domType && f.match) matched.add(f.position);
+  if (matched.size === 0) return null;
+  const lo = Math.min(...matched), hi = Math.max(...matched); let target = null;
+  for (let p = lo + 1; p < hi; p++) if (!matched.has(p)) { target = p; break; }
+  if (target == null) { for (let p = hi + 1; p <= n - 1; p++) { target = p; break; } }
+  if (target == null) return null;
+  const frag = frags.find(f => f.type === domType && f.position === target && !f.loss && f.charge === 1);
+  const bondAfter = domType === "b" ? target : n - target;
+  return { type: domType, position: target, mz: frag ? frag.mz : null, bondAfter, prevAA: residues[bondAfter-1], nextAA: residues[bondAfter], seq: frag ? frag.seq : "" };
+}
+function generateReading(m, residues) {
+  const seq = residues.join(""); const R = [];
+  const covW = m.coverage >= 75 ? "yes" : m.coverage >= 45 ? "partly" : "no";
+  R.push({ q: "Can we confidently read the peptide sequence?", word: covW === "yes" ? "YES" : covW === "partly" ? "IN PART" : "NOT YET", cls: covW,
+    support: <span><span className="num">{m.coverage.toFixed(0)}%</span> of the {m.cov.sites} backbone bonds are supported by matched fragment ions{covW==="yes"?" — enough to spell out the sequence.":covW==="partly"?" — readable in stretches, with gaps.":" — too many bonds rest on no ion."}</span> });
+  const intW = m.pctIntensity >= 65 ? "yes" : m.pctIntensity >= 35 ? "partly" : "no";
+  R.push({ q: "Does this peptide explain the observed spectrum?", word: intW === "yes" ? "MOST OF IT" : intW === "partly" ? "PARTLY" : "BARELY", cls: intW,
+    support: <span><span className="num">{m.pctIntensity.toFixed(0)}%</span> of the total ion current is accounted for by {seq}{intW!=="yes"?" — the rest is unexplained signal a competing explanation could claim.":"."}</span> });
+  const ppmW = m.nMatched === 0 ? "no" : m.medianPpm <= 5 ? "yes" : m.medianPpm <= 12 ? "partly" : "no";
+  R.push({ q: "Are the fragment masses trustworthy?", word: ppmW === "yes" ? "YES" : ppmW === "partly" ? "ACCEPTABLE" : "QUESTIONABLE", cls: ppmW,
+    support: <span>Median mass error is <span className="num">{m.medianPpm.toFixed(1)} ppm</span>{m.medianPpm<=5?" — high-resolution accuracy, the matches are real.":m.medianPpm<=12?" — usable but worth a calibration check.":" — large enough that some matches may be coincidental."}</span> });
+  const lad = Math.max(m.longestB, m.longestY); const ladW = lad >= residues.length-2 ? "yes" : lad >= 3 ? "partly" : "no";
+  R.push({ q: "Can the sequence be read residue-by-residue?", word: ladW === "yes" ? "YES" : ladW === "partly" ? "IN STRETCHES" : "NO", cls: ladW,
+    support: <span>The longest unbroken ladder is <span className="num">{lad}</span> residues (b={m.longestB}, y={m.longestY}){ladW==="yes"?" — you can walk the backbone end to end.":ladW==="partly"?" — several residues read in a row, then a break.":" — no continuous run, so order is inferred, not read."}</span> });
+  return R;
+}
+function generateReview(residues, m, frags, annotatedPeaks, method, tol) {
+  const seq = residues.join(""); const n = residues.length; const items = [];
+  const V = (level, question, answer, plain) => items.push({ level, question, answer, plain });
+  const maxLad = Math.max(m.longestB, m.longestY);
+  V(maxLad >= n-2 ? "good" : maxLad >= 3 ? "warn" : "bad", "Is there a continuous ion ladder?",
+    <span>Longest unbroken run <span className="stat">b={m.longestB}, y={m.longestY}</span> of {n-1} cleavages. {maxLad >= n-2 ? "Consecutive ions read the sequence directly — the strongest evidence." : maxLad >= 3 ? "Several residues read in a row, but a break leaves at least one junction thin." : "No consecutive run — matches could be coincidental."}</span>,
+    "Longest ladder b="+m.longestB+", y="+m.longestY+" of "+(n-1)+" cleavages. "+(maxLad>=n-2?"Continuous — reads directly.":maxLad>=3?"Partial ladder with a break.":"No consecutive run."));
+  const tolPpm = tol.unit === "ppm" ? tol.value : null;
+  V(m.nMatched===0?"info":m.medianPpm<=5?"good":m.medianPpm<=10?"warn":"bad", "Are the mass errors acceptable?",
+    m.nMatched===0 ? <span>No matches yet.</span> : <span>Median <span className="stat">{m.medianPpm.toFixed(1)} ppm</span> (max {m.maxAbsPpm.toFixed(1)}){tolPpm?<span>, window ±{tolPpm} ppm</span>:null}. {m.medianPpm<=5?"Consistent with Orbitrap/FT accuracy.":m.medianPpm<=10?"Looser than a well-calibrated Orbitrap — check calibration.":"Large enough that some matches may be coincidental."}</span>,
+    "Median "+m.medianPpm.toFixed(1)+" ppm (max "+m.maxAbsPpm.toFixed(1)+"). "+(m.medianPpm<=5?"High-resolution accurate.":m.medianPpm<=10?"Acceptable, check calibration.":"Large errors — some matches may be coincidental."));
+  V(m.coverage>=70&&m.pctIntensity>=50?"good":(m.coverage>=40||m.pctIntensity>=35)?"warn":"bad", "Is sequence coverage sufficient?",
+    <span>Matched ions cover <span className="stat">{m.coverage.toFixed(0)}%</span> of the backbone and <span className="stat">{m.pctIntensity.toFixed(0)}%</span> of intensity ({m.nMatched}/{m.nPeaks} peaks). {m.coverage>=70?"That is what a confident ID looks like.":m.coverage>=40?"Suggestive but partial.":"Too little to trust alone."}</span>,
+    "Coverage "+m.coverage.toFixed(0)+"%, intensity "+m.pctIntensity.toFixed(0)+"%, "+m.nMatched+"/"+m.nPeaks+" peaks. "+(m.coverage>=70?"Confident.":m.coverage>=40?"Partial.":"Insufficient."));
+  const maxInt = Math.max(...annotatedPeaks.map(p=>p.intensity), 1);
+  const bigUn = annotatedPeaks.filter(p => p.annotations.length===0 && p.intensity>=0.25*maxInt).sort((a,b)=>b.intensity-a.intensity);
+  V(bigUn.length===0?"good":bigUn.length<=2?"warn":"bad", "Are strong peaks left unexplained?",
+    bigUn.length===0 ? <span>No intense peak is unaccounted for — that argues against a competing explanation.</span> : <span><span className="stat">{bigUn.length}</span> strong peak{bigUn.length>1?"s":""} unexplained ({bigUn.slice(0,3).map(p=>p.mz.toFixed(1)).join(", ")}). Reviewers notice intense orphans — click each to interrogate it.</span>,
+    bigUn.length===0?"No intense peak unexplained.":bigUn.length+" strong peak(s) unexplained: "+bigUn.slice(0,3).map(p=>p.mz.toFixed(1)).join(", ")+".");
+  const ambigFrac = m.nMatched ? m.nAmbiguous / m.nMatched : 0; const oneSided = (m.cov.bMatched.size===0 || m.cov.yMatched.size===0);
+  const altLevel = (ambigFrac>0.3 || oneSided || m.coverage<50) ? "warn" : "good";
+  V(altLevel, "Could another peptide explain these peaks?",
+    altLevel==="good" ? <span>Both ion series agree across a continuous ladder with tight errors — a different sequence would have to reproduce all of that at once, which is unlikely.</span> : <span>Possibly. {oneSided?"Evidence leans on a single terminus, ":""}{ambigFrac>0.3?String(Math.round(ambigFrac*100))+"% of matched peaks have more than one candidate ion, ":""}{m.coverage<50?"and coverage is sparse. ":""}Near-isobaric sequences (swapped residues, Leu/Ile, Q≈K) can mimic partial evidence. Confirm with the complementary series or a tighter window.</span>,
+    altLevel==="good"?"Unlikely — bilateral agreement, tight errors.":"Possibly — "+[oneSided?"one-sided evidence":"", ambigFrac>0.3?"ambiguous peaks":"", m.coverage<50?"sparse coverage":""].filter(Boolean).join(", ")+".");
+  const proline = residues.includes("P"); let methodAns, methodPlain;
+  if (method === "ETD") { methodAns = <span>ETD gives <b>c/z</b> ions and spares PTMs but is weak for short, low-charge peptides. For this {n}-mer, an <b>HCD</b> run would likely give richer b/y ladders to cross-check.</span>; methodPlain = "ETD is weak for short/low-charge peptides; an HCD run would give richer b/y ladders."; }
+  else { methodAns = <span>{method} favours b/y via the mobile proton. {m.coverage<80 ? <span>Where the ladder breaks, <b>ETD</b> (c/z ions) fragments independently of residue chemistry and often fills gaps.</span> : <span>Coverage is already high, so a second method would mostly confirm the call.</span>} {proline?"Note the proline: expect strong cleavage before it and a resistant Pro–X bond after it.":""}</span>; methodPlain = method+" gives b/y. "+(m.coverage<80?"ETD (c/z) could fill ladder gaps.":"Coverage already high; ETD would mainly confirm.")+(proline?" Proline present — strong cleavage before, resistant bond after.":""); }
+  V("info", "Would another fragmentation method strengthen this?", methodAns, methodPlain);
+  return items;
+}
+function overallConfidence(items) {
+  const score = { good: 2, warn: 1, info: null, bad: 0 };
+  const graded = items.filter(i => score[i.level] !== null);
+  const avg = graded.reduce((s,i)=>s+score[i.level],0) / (graded.length || 1);
+  if (avg >= 1.5) return { level: "good", segs: 3, label: "High confidence", text: "The evidence converges — coverage, a real ladder, accurate masses, no serious orphans. Reasonable to report, alongside a formal search." };
+  if (avg >= 0.8) return { level: "warn", segs: 2, label: "Provisional", text: "Genuine support, but one or more reviewer questions are only partly satisfied. Treat as a working hypothesis and close the weak points first." };
+  return { level: "bad", segs: 1, label: "Insufficient", text: "The spectrum does not yet justify trusting this peptide. Re-check sequence, charge and tolerance, or acquire better data." };
+}
+function generateChemistry(residues, m, annotatedPeaks, method) {
+  const items = []; const n = residues.length; const cterm = residues[n-1];
+  const yDom = m.yInt > m.bInt * 1.4, bDom = m.bInt > m.yInt * 1.4;
+  if (yDom) items.push({ q: "Why do y ions dominate this spectrum?", a: <span>Under {method}, fragmentation is charge-directed by a mobile proton. {BASIC.has(cterm)?<span>The C-terminal <b>{AA_NAME[cterm]}</b> is basic and holds a proton, so the charge stays C-terminal — <b>y ions</b> are detected, while b ions are often neutral.</span>:<span>The charge tends to settle C-terminal here, so y ions are preferentially detected.</span>} This is the norm for tryptic peptides.</span> });
+  else if (bDom) items.push({ q: "Why do b ions dominate this spectrum?", a: <span>The charge is retained N-terminally here — often when the N-terminus is the more basic end. Watch such cases: without a basic C-terminal residue, complementary y ions may be missing, leaving one-sided evidence.</span> });
+  else items.push({ q: "Why are b and y ions balanced here?", a: <span>Comparable b and y intensity means the proton is mobile and samples both termini — each bond is reported from both directions, so the sequence is bracketed.</span> });
+  if (residues.includes("P")) { const pIdx = residues.indexOf("P")+1;
+    items.push({ q: "Why does proline change the fragmentation?", a: <span>Proline's side chain loops back to the backbone nitrogen, rigidifying it. The bond <b>before</b> Pro (near position {pIdx>1?pIdx-1:pIdx}) cleaves unusually easily — expect an intense ion — while the <b>Pro–X</b> bond just after resists cleavage, often leaving a gap.</span> }); }
+  const losses = new Set(); for (const p of annotatedPeaks) for (const a of p.annotations) if (a.loss) losses.add(a.loss);
+  if (losses.size) items.push({ q: "Why are there neutral-loss peaks?", a: <span>{losses.has("-H2O")?<span><b>Water loss</b> comes from hydroxyl/carboxyl side chains (S, T, E, D). </span>:null}{losses.has("-NH3")?<span><b>Ammonia loss</b> comes from amide/guanidinium side chains (K, R, Q, N). </span>:null}These shift a peak 17–18 Da down and confirm the residue is present, but add no coverage. (Loss rules here are heuristic — see assumptions.)</span> });
+  if (residues.includes("R")) items.push({ q: "Why does arginine hold the charge?", a: <span>Arginine's guanidinium group is the most basic side chain in proteins. It locks a proton in place, driving cleavage toward the rest of the backbone and making Arg-containing ions dominate — why tryptic peptides fragment so cleanly.</span> });
+  const resistant = []; for (let i=1;i<=n-1;i++){ if(!m.cov.bAfter.has(i) && !m.cov.yBefore.has(i)) resistant.push(residues[i-1]+"–"+residues[i]); }
+  if (resistant.length) items.push({ q: "Why are some bonds resistant to fragmentation?", a: <span>Bonds with no matched ion ({resistant.slice(0,4).join(", ")}{resistant.length>4?"…":""}) may simply not have fragmented: efficiency varies with neighbouring residues (Pro–X bonds, and bonds far from the charge, are notoriously quiet). A gap is often chemistry, not error — but it leaves that junction unproven.</span> });
+  return items;
+}
+function generateMentor(residues, m, frags, annotatedPeaks, method, precursorZ) {
+  const items = []; const n = residues.length;
+  if (m.coverage < 80) items.push({ q: "Could ETD improve sequence coverage?", a: <span>{method==="ETD"?<span>You're already on ETD. If coverage is thin, the precursor charge is likely too low for efficient electron transfer — try a higher charge state or supplemental activation (EThcD).</span>:<span>Very possibly. ETD cleaves the N–Cα bond to give <b>c/z</b> ions independently of residue chemistry, so it often covers the bonds {method} leaves quiet{residues.includes("P")?", including the resistant Pro–X region here":""}. Worth a complementary run.</span>}</span> });
+  items.push({ q: "Would a different precursor charge fragment better?", a: <span>{precursorZ<=1?<span>A 1+ precursor has no spare mobile proton — fragmentation is inefficient. A <b>2+ or 3+</b> charge state usually gives a much richer ladder.</span>:precursorZ>=4?<span>At {precursorZ}+ the spectrum can be crowded with overlapping multiply-charged fragments. If assignment is ambiguous, an isolated lower charge state can simplify it.</span>:<span>{precursorZ}+ is a good regime for {method}. If coverage is poor despite that, the cause is more likely collision energy or peptide chemistry than charge.</span>}</span> });
+  if (method !== "ETD") items.push({ q: "Would lower collision energy help?", a: <span>If you suspect a labile modification (phospho, glyco), high {method} energy can strip it before the backbone informs on its position. <b>Lower energy</b> — or ETD — preserves the modification for localisation. For an unmodified peptide, raise energy to drive more backbone cleavage.</span> });
+  if (n > 20) items.push({ q: "Is this peptide too long for confident HCD sequencing?", a: <span>At {n} residues, the charge often can't reach every bond under {method}, so the middle fragments poorly. Consider supplemental activation (EThcD) or a different protease for shorter peptides.</span> });
+  const miss = informativeMissingIon(m, frags, residues);
+  if (miss) items.push({ q: "Why wasn't " + miss.type + miss.position + " observed?", a: <span>The <b>{miss.type}{miss.position}</b> ion{miss.mz?<span> (m/z {miss.mz.toFixed(2)})</span>:null} would report the {miss.prevAA}–{miss.nextAA} bond, but no peak matched it. Likely reasons: {miss.nextAA==="P"?<span><b>the Pro–X bond resists cleavage</b>, </span>:null}the charge localised elsewhere so this fragment stayed neutral, low fragmentation efficiency here, the peak fell below the noise threshold, or a competing neutral loss drained its intensity.</span> });
+  return items;
+}
+
+/* =================================================================== */
+/*  Hero — animated fragmentation                                      */
+/* =================================================================== */
+function useClock() {
+  const [t, setT] = useState(() => new Date());
+  useEffect(() => { const id = setInterval(() => setT(new Date()), 1000); return () => clearInterval(id); }, []);
+  return t.toTimeString().slice(0, 8);
+}
+const HERO_SEQ = "PEPTIDE";
+function FragmentationStage() {
+  const residues = HERO_SEQ.split(""); const n = residues.length;
+  const bIons = useMemo(() => calculateBIons(residues), []);
+  const yIons = useMemo(() => calculateYIons(residues), []);
+  const peakList = useMemo(() => { const arr = [];
+    for (let k = 1; k <= n - 1; k++) { arr.push({ site: k, kind: "b", mz: calculateMz(bIons[k-1].neutralMass, 1) }); arr.push({ site: k, kind: "y", mz: calculateMz(yIons[(n-k)-1].neutralMass, 1) }); }
+    return arr; }, []);
+  const minMz = Math.min(...peakList.map(p=>p.mz)) - 40, maxMz = Math.max(...peakList.map(p=>p.mz)) + 40;
+  const [site, setSite] = useState(1); const [broken, setBroken] = useState(false); const [appeared, setAppeared] = useState(new Set()); const tRef = useRef([]);
+  useEffect(() => {
+    let s = 1; let mounted = true; const clear = () => { tRef.current.forEach(clearTimeout); tRef.current = []; };
+    const cycle = () => { if (!mounted) return; setSite(s); setBroken(false);
+      tRef.current.push(setTimeout(() => setBroken(true), 260));
+      tRef.current.push(setTimeout(() => setAppeared(prev => new Set(prev).add(s)), 700));
+      tRef.current.push(setTimeout(() => { setBroken(false); s = s + 1; if (s > n - 1) { s = 1; setTimeout(() => setAppeared(new Set()), 500); } cycle(); }, 2300)); };
+    cycle(); return () => { mounted = false; clear(); };
+  }, []);
+  const W = 1100, H = 300, padX = 90, chainY = 84, r = 26; const step = (W - 2*padX) / (n - 1);
+  const xOf = (i) => padX + i * step; const specTop = 168, specBot = 268; const xMz = (mz) => padX + ((mz - minMz)/(maxMz - minMz)) * (W - 2*padX);
+  return (
+    <div className="stage">
+      <svg viewBox={"0 0 " + W + " " + H} aria-label="fragmentation animation">
+        {residues.slice(0, n-1).map((_, i) => { const bh = broken && (i === site - 1);
+          return <line key={"bond"+i} className="bond" x1={xOf(i)+r} y1={chainY} x2={xOf(i+1)-r} y2={chainY} stroke={bh ? "#e8695f" : "#2a2d33"} strokeWidth={bh ? 1 : 2} strokeDasharray={bh ? "3 5" : "0"} opacity={bh ? 0.25 : 1} />; })}
+        {residues.map((aa, i) => { const isLeft = i <= site - 1; const dx = broken ? (isLeft ? -26 : 26) : 0, dy = broken ? (isLeft ? -20 : 20) : 0; const col = broken ? (isLeft ? "#e8695f" : "#5b9bd5") : "#3a3d44";
+          return <g key={"res"+i} className="residue-node" transform={"translate(" + dx + "," + dy + ")"}><circle cx={xOf(i)} cy={chainY} r={r} fill="#101114" stroke={col} strokeWidth="1.5" /><text x={xOf(i)} y={chainY+6} textAnchor="middle" fontFamily="var(--mono)" fontSize="19" fill="#edeef1">{aa}</text></g>; })}
+        <text className="ion-tag" x={xOf((site-1)/2)} y={chainY-46} textAnchor="middle" fontSize="15" fill="#e8695f" opacity={broken ? 1 : 0}>b{site}</text>
+        <text className="ion-tag" x={xOf(site + (n-1-site)/2)} y={chainY+70} textAnchor="middle" fontSize="15" fill="#5b9bd5" opacity={broken ? 1 : 0}>y{n-site}</text>
+        <line x1={padX} y1={specBot} x2={W-padX} y2={specBot} stroke="#22252b" strokeWidth="1.5" />
+        <text x={W-padX} y={specBot+22} textAnchor="end" fontFamily="var(--mono)" fontSize="10" fill="#565a63">m/z →</text>
+        {peakList.map((p, i) => { const shown = appeared.has(p.site); const isCurrent = p.site === site && broken; const frac = isCurrent ? 1 : (shown ? 0.62 : 0); const col = p.kind === "b" ? "#e8695f" : "#5b9bd5";
+          return <line key={"pk"+i} className="peak-stick" x1={xMz(p.mz)} y1={specTop} x2={xMz(p.mz)} y2={specBot} stroke={col} strokeWidth={isCurrent ? 2.5 : 1.5} opacity={isCurrent ? 1 : (shown ? 0.42 : 0)} transform={"scaleY(" + frac + ")"} />; })}
+      </svg>
+      <div className="hero-caption"><span className="step num">{String(site).padStart(2,"0")} / {String(n-1).padStart(2,"0")}</span>
+        <span className="txt">The backbone breaks after residue {site} → the N-terminal half becomes <b className="bt">b{site}</b>, the C-terminal half becomes <b className="yt">y{n-site}</b> → two peaks appear. Every bond does this; the surviving pattern is the spectrum.</span></div>
+    </div>
+  );
+}
+function Hero({ onEnter }) {
+  const clock = useClock();
+  return (
+    <div className="hero fadein" onWheel={(e)=>{ if (e.deltaY > 10) onEnter(); }}>
+      <div className="hero-top"><div className="wordmark">PEPTIDE<div className="sub">MS/MS reasoning · {clock}</div></div><button className="enter" onClick={onEnter}>OPEN INSTRUMENT →</button></div>
+      <div className="hero-mid">
+        <div className="hero-head"><h1>Read a spectrum<br/>the way an expert does.</h1>
+          <p>PEPTIDE doesn't just label peaks. It reconstructs why each ion exists, weighs the evidence a reviewer would demand, and helps you design a better experiment — turning fragmentation from arithmetic into reasoning.</p></div>
+        <FragmentationStage />
+      </div>
+      <div className="hero-foot">
+        <div className="principles">
+          <div><div className="kicker">Observation → Interpretation</div><div className="p">A workflow, not a form. From peaks to a biological conclusion.</div></div>
+          <div><div className="kicker">Every view answers "why"</div><div className="p">Click a peak — the whole app explains why that ion is there.</div></div>
+          <div><div className="kicker">An experimental mentor</div><div className="p">The next experiment to run, and the reviewer's doubts, surfaced for you.</div></div>
+        </div>
+        <button className="hero-cta" onClick={onEnter}>Get started <span className="arw">→</span></button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- onboarding chooser ---------------- */
+function Choose({ onExample, onOwn, onBack }) {
+  return (
+    <div className="choose fadein">
+      <div className="ctitle">How would you like to start?</div>
+      <div className="csub">PEPTIDE is a reasoning environment for tandem-MS spectra. Take the guided tour, or bring your own peptide and spectrum.</div>
+      <div className="choose-cards">
+        <div className="ccard" onClick={onExample}>
+          <div className="cc-k">Recommended · ~1 min</div>
+          <h3>Learn with an example</h3>
+          <p>A guided walkthrough on the demo peptide <b style={{color:"var(--text)"}}>PEPTIDE</b> and a matching spectrum. Ten short callouts explain not just where to click, but why each step matters scientifically.</p>
+          <div className="cc-go">Start the walkthrough →</div>
+        </div>
+        <div className="ccard" onClick={onOwn}>
+          <div className="cc-k">For your own data</div>
+          <h3>Analyze my own data</h3>
+          <p>Enter a peptide sequence — the only required input. Optionally add a precursor charge, fragmentation method, tolerance, and a pasted <b style={{color:"var(--text)"}}>m/z,intensity</b> spectrum to move from prediction to interpretation.</p>
+          <div className="cc-go">Open a blank workspace →</div>
+        </div>
+      </div>
+      <button className="cback" onClick={onBack}>← back to intro</button>
+    </div>
+  );
+}
+
+/* ---------------- guided tour ---------------- */
+const TOUR_STEPS = [
+  { id:"tour-seq", t:"1 · The peptide sequence", place:"right", b:"Everything starts with a hypothesis: which peptide do you believe produced this spectrum? PEPTIDE tests that claim against the data — it never assumes you're right. This is the sequence we'll put on trial." },
+  { id:"tour-method", t:"2 · Fragmentation method", place:"right", b:"The method sets the chemistry. HCD and CID make b/y ions; ETD makes c/z ions. Choosing correctly changes which peaks you should expect — and turns a 'missing' ion into either a red flag or a non-event." },
+  { id:"tour-ledger", t:"3 · Predicted b/y ions", place:"top", b:"From the sequence alone, PEPTIDE computes every b and y ion — the peaks this peptide should produce. This theoretical fingerprint is what we hold the real data against. Nothing here is measured yet; it's the prediction." },
+  { id:"spectrum", t:"4 · The observed spectrum", place:"bottom", b:"Here is the real spectrum. Predicted ions that match observed peaks are coloured (red = b, blue = y); grey peaks are unexplained. Matching a prediction to a peak is the moment a guess becomes evidence." },
+  { id:"spectrum", t:"5 · Interrogate one peak", place:"bottom", b:"We've selected the tallest peak for you. Watch the rest of the app reorganise around it — because reading a spectrum means questioning one peak at a time, asking why it's there, not just labelling it." },
+  { id:"tour-inspector", t:"6 · Why the ion exists", place:"top", b:"This is the answer: the exact backbone bond that broke, drawn on the peptide, plus why the ion is intense. Understanding why an ion forms — the chemistry — is what separates interpretation from a lookup table." },
+  { id:"tour-coverage", t:"7 · Sequence coverage", place:"top", b:"The coverage map shows which bonds are actually supported by ions. Ticks on both sides of a residue bracket it from both directions — that's how you know a sequence is truly read, not guessed. Gaps are where doubt lives." },
+  { id:"tour-reviewer", t:"8 · The reviewer's questions", place:"left", b:"PEPTIDE asks what a journal referee would ask before believing an ID: continuous ladder? acceptable mass errors? unexplained peaks? could another peptide fit? Each is answered from your data, with a pass/caution/fail." },
+  { id:"tour-confidence", t:"9 · Confidence", place:"left", b:"Everything rolls up into one explicit call — trust, provisional, or not yet. The goal of PEPTIDE isn't to hand you a peptide name; it's to tell you how much you should believe it, and why." },
+  { id:"tour-mentor", t:"10 · Design a better experiment", place:"left", b:"Finally, PEPTIDE suggests what to run next — would ETD fill the gaps, why a given ion was missing, whether a different charge would help — reasoning like a collaborator planning your next acquisition." },
+];
+function Tour({ step, setStep }) {
+  const [rect, setRect] = useState(null);
+  const s = TOUR_STEPS[step]; const total = TOUR_STEPS.length;
+  useEffect(() => {
+    if (!s) return;
+    const measure = () => { const el = document.getElementById(s.id); if (el) setRect(el.getBoundingClientRect()); };
+    const el = document.getElementById(s.id);
+    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    const id = setTimeout(measure, 380);
+    const cols = document.querySelectorAll(".col");
+    window.addEventListener("resize", measure); window.addEventListener("scroll", measure, true);
+    cols.forEach(c => c.addEventListener("scroll", measure));
+    return () => { clearTimeout(id); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); cols.forEach(c => c.removeEventListener("scroll", measure)); };
+  }, [step]);
+  if (!s) return null;
+  const bw = 330, pad = 12; const vw = window.innerWidth, vh = window.innerHeight;
+  let bx = vw/2 - bw/2, by = vh/2 - 80;
+  if (rect) {
+    if (s.place === "right") { bx = rect.right + 14; by = rect.top; }
+    else if (s.place === "left") { bx = rect.left - bw - 14; by = rect.top; }
+    else if (s.place === "bottom") { bx = rect.left; by = rect.bottom + 14; }
+    else if (s.place === "top") { bx = rect.left; by = rect.top - 210; }
+    bx = Math.max(pad, Math.min(bx, vw - bw - pad));
+    by = Math.max(pad, Math.min(by, vh - 210 - pad));
+  }
+  return (
+    <>
+      {rect && <div className="tour-ring" style={{ left: rect.left - 6, top: rect.top - 6, width: rect.width + 12, height: rect.height + 12 }}></div>}
+      <div className="tour-bubble" style={{ left: bx, top: by, width: bw }}>
+        <div className="tb-step">Guided tour · {step+1} of {total}</div>
+        <div className="tb-title">{s.t}</div>
+        <div className="tb-body">{s.b}</div>
+        <div className="tb-foot">
+          <button className="tb-skip" onClick={()=>setStep(-1)}>Skip tour</button>
+          <div className="tb-nav">
+            {step>0 && <button className="tb-btn" onClick={()=>setStep(step-1)}>Back</button>}
+            {step<total-1 ? <button className="tb-btn primary" onClick={()=>setStep(step+1)}>Next</button> : <button className="tb-btn primary" onClick={()=>setStep(-1)}>Done</button>}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* =================================================================== */
+/*  App                                                                */
+/* =================================================================== */
+const DEFAULT_SEQ = "PEPTIDE";
+const DEFAULT_SPECTRUM =
+`98.06,15
+227.10,40
+324.16,22
+425.20,58
+538.29,30
+148.06,45
+263.09,80
+376.17,100
+477.22,66
+574.27,52
+703.31,28
+310.10,35
+201.05,12`;
+
+function App() {
+  const [view, setView] = useState("hero");        // hero | choose | app
+  const [seq, setSeq] = useState(DEFAULT_SEQ);
+  const [precursorZ, setPrecursorZ] = useState(2);
+  const [method, setMethod] = useState("HCD");
+  const [types, setTypes] = useState({ b: true, y: true });
+  const [charges, setCharges] = useState({ 1: true, 2: false, 3: false });
+  const [tolValue, setTolValue] = useState(20);
+  const [tolUnit, setTolUnit] = useState("ppm");
+  const [spectrumText, setSpectrumText] = useState(DEFAULT_SPECTRUM);
+  const [selResidue, setSelResidue] = useState(null);
+  const [hover, setHover] = useState(null);
+  const [pinned, setPinned] = useState(null);
+  const [tourStep, setTourStep] = useState(-1);
+  const plotRef = useRef(null);
+  const clock = useClock();
+
+  const chargeList = Object.keys(charges).filter(z => charges[z]).map(Number).sort();
+  const tol = { value: Number(tolValue) || 0, unit: tolUnit };
+
+  const loadDemo = () => { setSeq(DEFAULT_SEQ); setSpectrumText(DEFAULT_SPECTRUM); setMethod("HCD"); setCharges({1:true,2:false,3:false}); setTolValue(20); setTolUnit("ppm"); setSelResidue(null); setPinned(null); };
+
+  const result = useMemo(() => {
+    if (!seq || seq.trim() === "") return { ok: false, empty: true };
+    try {
+      const residues = parsePeptide(seq);
+      const frags0 = buildFragments(residues, { types, charges: chargeList.length ? chargeList : [1] });
+      const peaks = parseSpectrum(spectrumText);
+      const hasSpectrum = peaks.length > 0;
+      const { frags, annotatedPeaks } = hasSpectrum ? matchObservedPeaks(frags0, peaks, tol)
+        : { frags: frags0.map(f => ({ ...f, match: null })), annotatedPeaks: [] };
+      const metrics = hasSpectrum ? computeMetrics(frags, annotatedPeaks, residues.length) : null;
+      const reading = metrics ? generateReading(metrics, residues) : null;
+      const review = metrics ? generateReview(residues, metrics, frags, annotatedPeaks, method, tol) : null;
+      const chemistry = metrics ? generateChemistry(residues, metrics, annotatedPeaks, method) : null;
+      const mentor = metrics ? generateMentor(residues, metrics, frags, annotatedPeaks, method, precursorZ) : null;
+      const confidence = review ? overallConfidence(review) : null;
+      return { ok: true, residues, frags, annotatedPeaks, metrics, reading, review, chemistry, mentor, confidence, hasSpectrum };
+    } catch (e) { return { ok: false, error: e.message }; }
+  }, [seq, JSON.stringify(types), JSON.stringify(charges), tolValue, tolUnit, spectrumText, method, precursorZ]);
+
+  const n = result.ok ? result.residues.length : 0;
+  const active = hover || pinned;
+
+  const mapFocus = useMemo(() => {
+    if (!result.ok) return null; const nn = result.residues.length;
+    if (selResidue != null) return { kind: "residue", residues: new Set([selResidue]), bond: null };
+    const a = pinned;
+    if (a && a.kind === "fragment") { const f = a.f; const set = new Set(); for (let r=1;r<=nn;r++) if (fragmentContainsResidue(f, r, nn)) set.add(r); return { kind: "fragment", residues: set, bond: f.type==="b"?f.position:nn-f.position, type: f.type }; }
+    if (a && a.kind === "peak") { const pk = result.annotatedPeaks[a.idx]; if (pk && pk.annotations.length) { const best = [...pk.annotations].sort((x,y)=>Math.abs(x.ppm)-Math.abs(y.ppm))[0]; const set = new Set(); for (let r=1;r<=nn;r++) if (annotationContainsResidue(best, r, nn)) set.add(r); return { kind: "peak", residues: set, bond: best.type==="b"?best.position:nn-best.position, type: best.type }; } }
+    return null;
+  }, [result, selResidue, pinned]);
+
+  // during the walkthrough, auto-select the base peak at the "interrogate one peak" step
+  useEffect(() => {
+    if (tourStep === 4 && result.ok && result.hasSpectrum) {
+      let bi = 0, bv = -1; result.annotatedPeaks.forEach((p,i)=>{ if (p.intensity > bv) { bv = p.intensity; bi = i; } });
+      setSelResidue(null); setPinned({ kind: "peak", idx: bi });
+    }
+  }, [tourStep]);
+
+  useEffect(() => {
+    if (view !== "app" || !plotRef.current || !result.ok || !window.Plotly) return;
+    const el = plotRef.current; const traces = []; const annotations = []; const nn = result.residues.length;
+    const baseColor = (anns) => { if (!anns.length) return "#4a4d54"; if (anns.some(a => a.loss)) return "#d8a544"; return anns[0].type === "b" ? "#e8695f" : "#5b9bd5"; };
+    if (result.hasSpectrum) {
+      const peaks = result.annotatedPeaks; const maxInt = Math.max(...peaks.map(p => p.intensity), 1); const maxMz = Math.max(...peaks.map(p => p.mz), 1);
+      const colors = peaks.map(p => { if (selResidue != null) { const sup = p.annotations.some(a => annotationContainsResidue(a, selResidue, nn)); return sup ? baseColor(p.annotations) : "#2c2f35"; } return baseColor(p.annotations); });
+      traces.push({ type: "bar", x: peaks.map(p => p.mz), y: peaks.map(p => p.intensity), marker: { color: colors }, width: peaks.map(() => maxMz / 260),
+        hovertext: peaks.map(p => "m/z " + p.mz.toFixed(3) + " · int " + p.intensity + (p.annotations.length ? "<br>" + p.annotations.map(a=>a.label).join(", ") : "<br>unexplained")), hoverinfo: "text", showlegend: false });
+      for (const p of peaks) { const tall = p.intensity >= 0.22 * maxInt; const dim = selResidue != null && !p.annotations.some(a => annotationContainsResidue(a, selResidue, nn));
+        if (p.annotations.length) annotations.push({ x: p.mz, y: p.intensity, text: p.annotations.map(a=>a.label).join(" / "), showarrow: false, yshift: 9, font: { size: 10, color: dim ? "#3a3d44" : baseColor(p.annotations) } });
+        else if (tall) annotations.push({ x: p.mz, y: p.intensity, text: "?", showarrow: false, yshift: 8, font: { size: 12, color: "#767a82" } }); }
+      traces.push({ type:"bar", x:[null], y:[null], marker:{color:"#e8695f"}, name:"b ions" });
+      traces.push({ type:"bar", x:[null], y:[null], marker:{color:"#5b9bd5"}, name:"y ions" });
+      traces.push({ type:"bar", x:[null], y:[null], marker:{color:"#d8a544"}, name:"neutral loss" });
+      traces.push({ type:"bar", x:[null], y:[null], marker:{color:"#4a4d54"}, name:"unexplained" });
+    } else {
+      const f = result.frags; const maxMz = f.length ? Math.max(...f.map(x=>x.mz)) : 1;
+      traces.push({ type: "bar", x: f.map(x=>x.mz), y: f.map(()=>1), marker:{ color: f.map(x => x.loss ? "#d8a544" : (x.type==="b"?"#e8695f":"#5b9bd5")) }, width: maxMz/320,
+        hovertext: f.map(x=>x.label + " · m/z " + x.mz.toFixed(3)), hoverinfo:"text", showlegend:false });
+      for (const x of f) if (!x.loss) annotations.push({ x: x.mz, y: 1, text: x.label, showarrow:false, yshift:8, font:{size:9, color: x.type==="b"?"#e8695f":"#5b9bd5"} });
+    }
+    const layout = { paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: "#767a82", size: 11, family: "SF Mono, monospace" },
+      margin: { l: 54, r: 16, t: 14, b: 44 }, xaxis: { title: "m/z", gridcolor: "#141619", zeroline: false, linecolor: "#22252b" },
+      yaxis: { title: result.hasSpectrum ? "intensity" : "theoretical (predicted)", gridcolor: "#141619", zeroline: false, rangemode: "tozero", linecolor: "#22252b" },
+      annotations, barmode: "overlay", bargap: 0, legend: { orientation: "h", y: 1.13, font: { size: 10 } }, showlegend: result.hasSpectrum };
+    window.Plotly.react(el, traces, layout, { responsive: true, displaylogo: false, modeBarButtonsToRemove: ["lasso2d","select2d","autoScale2d","toggleSpikelines","hoverClosestCartesian","hoverCompareCartesian"] });
+    if (result.hasSpectrum) {
+      try { el.removeAllListeners && el.removeAllListeners("plotly_hover"); el.removeAllListeners && el.removeAllListeners("plotly_unhover"); el.removeAllListeners && el.removeAllListeners("plotly_click"); } catch(e){}
+      el.on && el.on("plotly_hover", (d) => { const pt = d.points[0]; if (pt && pt.curveNumber === 0) setHover({ kind: "peak", idx: pt.pointIndex }); });
+      el.on && el.on("plotly_unhover", () => setHover(null));
+      el.on && el.on("plotly_click", (d) => { const pt = d.points[0]; if (pt && pt.curveNumber === 0) { setSelResidue(null); setPinned({ kind: "peak", idx: pt.pointIndex }); } });
+    }
+  }, [result, view, selResidue]);
+
+  const toggleType = (t) => setTypes(s => ({ ...s, [t]: !s[t] }));
+  const toggleCharge = (z) => setCharges(s => ({ ...s, [z]: !s[z] }));
+  const exportPNG = () => { if (plotRef.current && window.Plotly) window.Plotly.downloadImage(plotRef.current, { format:"png", filename:"peptide_spectrum", width:1400, height:700, scale:2 }); };
+  const exportSVG = () => { if (plotRef.current && window.Plotly) window.Plotly.downloadImage(plotRef.current, { format:"svg", filename:"peptide_spectrum", width:1400, height:700 }); };
+  const exportCSV = () => { if (result.ok) downloadText("peptide_fragments.csv", fragmentsToCSV(result.frags), "text/csv"); };
+
+  if (view === "hero") return <Hero onEnter={() => setView("choose")} />;
+  if (view === "choose") return <Choose
+    onExample={() => { loadDemo(); setView("app"); setTimeout(()=>setTourStep(0), 400); }}
+    onOwn={() => { setSeq(""); setSpectrumText(""); setSelResidue(null); setPinned(null); setView("app"); }}
+    onBack={() => setView("hero")} />;
+
+  return (
+    <div className="app fadein">
+      {tourStep >= 0 && <Tour step={tourStep} setStep={setTourStep} />}
+      <header className="topbar">
+        <div className="brand" onClick={() => setView("hero")} title="Home"><div className="wm">PEPTIDE</div></div>
+        <div className="flow">
+          <span className="on">HYPOTHESIS</span><span className="sep">→</span><span className="on">OBSERVATION</span><span className="sep">→</span>
+          <span className="on">EVIDENCE</span><span className="sep">→</span><span className="on">INTERPRETATION</span><span className="sep">→</span><span className="on">CONFIDENCE</span>
+        </div>
+        <div className="topbar-actions">
+          <button className="hbtn" onClick={() => { loadDemo(); setTimeout(()=>setTourStep(0), 200); }} title="Replay the guided walkthrough on the demo peptide">Guided tour</button>
+          <button className="hbtn" onClick={() => setView("choose")} title="Back to the start options">Menu</button>
+          <div className="clock">{clock}</div>
+        </div>
+      </header>
+
+      <div className="layout">
+        {/* -------- LEFT: hypothesis -------- */}
+        <div className="col left">
+          <div className="stage-label"><span className="n">01</span><span className="t">Hypothesis</span></div>
+          <div style={{fontSize:12, color:"var(--dim)", fontWeight:300, lineHeight:1.55, marginTop:-6, marginBottom:20}}>Which peptide, measured how, are we putting on trial? Only the sequence is required.</div>
+          <label className="field" id="tour-seq"><span className="lab">Peptide sequence <span className="tag req">required</span></span>
+            <input className="seq" type="text" value={seq} onChange={e => { setSeq(e.target.value); setSelResidue(null); setPinned(null); }} placeholder="e.g. PEPTIDE" />
+            <div className="hint">One-letter codes for the 20 standard amino acids.</div></label>
+          <div className="row">
+            <label className="field"><span className="lab">Precursor z <span className="tag opt">optional</span></span><input type="number" min="1" max="8" value={precursorZ} onChange={e => setPrecursorZ(Number(e.target.value))} /></label>
+            <label className="field" id="tour-method"><span className="lab">Fragmentation <span className="tag opt">optional</span></span><select value={method} onChange={e => setMethod(e.target.value)}><option>HCD</option><option>CID</option><option>ETD</option></select></label>
+          </div>
+          <div className="method-note">
+            {method === "HCD" && "HCD — high-energy collisions. Mostly b/y ions plus immonium ions; the workhorse for tryptic peptides."}
+            {method === "CID" && "CID — resonant collisional activation. b/y ions, strongly shaped by the mobile proton; watch for the proline effect."}
+            {method === "ETD" && "ETD — electron transfer gives c/z ions and preserves PTMs. This preview reasons over b/y; the mentor flags where ETD's c/z ions would help."}
+          </div>
+          <div className="stage-label" style={{marginTop:8}}><span className="n">·</span><span className="t">Fragment ions</span><span className="q">optional</span></div>
+          <span className="lab" style={{display:"block", marginBottom:8}}>Ion series</span>
+          <div className="chips"><Chip on={types.b} cls="b" onClick={() => toggleType("b")}>b · N-term</Chip><Chip on={types.y} cls="y" onClick={() => toggleType("y")}>y · C-term</Chip></div>
+          <span className="lab" style={{display:"block", margin:"16px 0 8px"}}>Fragment charge states</span>
+          <div className="chips"><Chip on={charges[1]} onClick={() => toggleCharge(1)}>1+</Chip><Chip on={charges[2]} onClick={() => toggleCharge(2)}>2+</Chip><Chip on={charges[3]} onClick={() => toggleCharge(3)}>3+</Chip></div>
+          <div className="stage-label" style={{marginTop:26}}><span className="n">·</span><span className="t">Match tolerance</span><span className="q">optional</span></div>
+          <div className="row">
+            <label className="field"><span className="lab">Window</span><input type="number" step="any" value={tolValue} onChange={e => setTolValue(e.target.value)} /></label>
+            <label className="field"><span className="lab">Unit</span><select value={tolUnit} onChange={e => setTolUnit(e.target.value)}><option value="ppm">ppm</option><option value="Da">Da</option></select></label>
+          </div>
+          <div className="hint">A looser window matches more peaks — and invites more false matches. The reviewer judges whether your errors stay honest.</div>
+
+          {/* PTM panel — architecture in place; not yet applied */}
+          <div className="stage-label" style={{marginTop:26}}><span className="n">·</span><span className="t">Modifications</span></div>
+          <div className="ptm">
+            <div className="ptm-head"><span style={{fontSize:12, color:"var(--muted)", fontWeight:300}}>Variable / fixed PTMs</span><span className="soon">Coming soon</span></div>
+            {MODIFICATIONS.map(mod => (
+              <label className="ptm-row" key={mod.id} title="Modifications are not yet applied to the mass calculations in this preview.">
+                <input type="checkbox" disabled />
+                <span className="nm">{mod.name}</span> <span className="tg">{mod.target}</span>
+                <span className="d">{mod.delta!=null ? "+"+mod.delta.toFixed(4) : "Δ custom"}</span>
+              </label>
+            ))}
+            <div className="ptm-foot">The mass engine reads residue masses through a single extension point, so these modifications can be enabled cleanly. They are <b style={{color:"var(--muted)"}}>not</b> applied to calculations yet.</div>
+          </div>
+
+          <div className="stage-label" style={{marginTop:26}}><span className="n">·</span><span className="t">Observed spectrum</span><span className="q">optional</span></div>
+          <label className="field"><textarea value={spectrumText} onChange={e => { setSpectrumText(e.target.value); setPinned(null); }} placeholder={"Paste m/z,intensity pairs — one per line:\n148.06,45\n263.09,80\n376.17,100"} rows={7} />
+            <div className="hint">Leave empty for a theoretical prediction. With a spectrum, PEPTIDE produces an experimental interpretation. Direct mzML / MGF import is planned, not yet available.</div></label>
+          <button className="btn" onClick={() => { setSpectrumText(""); setPinned(null); }}>Clear spectrum</button>
+          <button className="btn primary" onClick={loadDemo}>Load worked example</button>
+        </div>
+
+        {/* -------- CENTER: observation → evidence → why -------- */}
+        <div className="col center">
+          <div className="block">
+            <div className="stage-label"><span className="n">02</span><span className="t">Observation</span>
+              {result.ok && <ModeBadge hasSpectrum={result.hasSpectrum} />}</div>
+            {result.ok ? <>
+              <div id="spectrum" ref={plotRef}></div>
+              {result.hasSpectrum ? <div className="spectrum-sub">Click any peak — the evidence map, cleavage diagram and inspector below all reorganise around it. Dimmed peaks aren't yet explained.</div>
+                : <div className="spectrum-sub"><b style={{color:"var(--loss)"}}>Theoretical prediction only.</b> These are the ions {seq} would produce. Paste an observed spectrum on the left to compare experiment against prediction.</div>}
+              <div className="exportbar">
+                <button className="xbtn" onClick={exportPNG} title="Download the spectrum as a PNG image">↓ Spectrum PNG</button>
+                <button className="xbtn" onClick={exportSVG} title="Download the spectrum as a vector SVG">↓ Spectrum SVG</button>
+                <button className="xbtn" onClick={exportCSV} title="Download the full fragment table as CSV">↓ Fragments CSV</button>
+              </div>
+            </> : <div className="empty">{result.empty
+                ? <span><b>Start with a peptide.</b> Enter a sequence in the Hypothesis panel (left) and PEPTIDE will predict its b/y fragment ions here. Add an observed spectrum to move from prediction to interpretation.</span>
+                : <span>{result.error}</span>}</div>}
+          </div>
+
+          <div className="block" id="tour-coverage">
+            <div className="stage-label"><span className="n">03</span><span className="t">Evidence</span><span className="q">— which bonds are actually supported?</span></div>
+            {result.ok ? <CoverageMap residues={result.residues} cov={result.metrics ? result.metrics.cov : calculateCoverage(result.frags, n)} frags={result.frags} hasSpectrum={result.hasSpectrum} selResidue={selResidue} mapFocus={mapFocus} setSelResidue={(r)=>{ setSelResidue(r); setPinned(null); }} />
+              : <div className="empty">The sequence-coverage map appears once you enter a peptide sequence.</div>}
+          </div>
+
+          <div className="block" id="tour-inspector">
+            <div className="stage-label"><span className="n">·</span><span className="t">Why this ion?</span><span className="q">— the chemistry behind the peak</span></div>
+            {result.ok ? <Inspector active={active} pinned={pinned} result={result} tol={tol} onClear={()=>setPinned(null)} />
+              : <div className="inspector"><div className="insp-empty">Enter a peptide, then hover a predicted ion — or click a peak once you've added a spectrum — and this panel reconstructs the bond that broke and why the ion exists.</div></div>}
+          </div>
+
+          <div className="block" id="tour-ledger">
+            <div className="stage-label"><span className="n">·</span><span className="t">Fragment ledger</span><span className="q">— hover to inspect · click a residue above to filter</span></div>
+            {result.ok ? <FragmentTable frags={result.frags} n={n} selResidue={selResidue} onHover={(f)=>setHover(f ? { kind:"fragment", f } : null)} onPin={(f)=>{ setSelResidue(null); setPinned({ kind:"fragment", f }); }} />
+              : <div className="empty">Predicted b/y ions are listed here once a sequence is entered.</div>}
+          </div>
+        </div>
+
+        {/* -------- RIGHT: interpretation → chemistry → confidence → mentor -------- */}
+        <div className="col right">
+          <div className="stage-label"><span className="n">04</span><span className="t">Interpretation</span>{result.ok && <ModeBadge hasSpectrum={result.hasSpectrum} />}</div>
+          {result.ok && result.metrics ? <>
+            <div className="copybar">
+              <button className="xbtn" onClick={()=>copyText(interpretationSummaryText(result, method, seq))} title="Copy a plain-text interpretation summary to the clipboard">⧉ Copy interpretation</button>
+              <button className="xbtn" onClick={()=>copyText(reviewerNotesText(result, seq))} title="Copy the reviewer notes to the clipboard">⧉ Copy reviewer notes</button>
+            </div>
+            <div className={"verdict-line " + result.confidence.level} style={{marginTop:14}}>{result.confidence.label} — {shortVerdict(result)}</div>
+            <div className="reading">
+              {result.reading.map((r,i)=>(<div className="r" key={i}><div className="q">{r.q}</div><div className={"vw " + r.cls}>{r.word}</div><div className="support">{r.support}</div></div>))}
+            </div>
+            <div className="stage-label" style={{marginTop:30}} id="tour-reviewer"><span className="n">·</span><span className="t">The reviewer's questions</span></div>
+            {result.review.map((it, i) => (<div className="review-item" key={i}><div className="review-q"><span className={"dot " + it.level}></span>{it.question}</div><div className="review-a">{it.answer}</div></div>))}
+            <div className="stage-label" style={{marginTop:30}}><span className="n">·</span><span className="t">The chemistry</span><span className="q">— why this spectrum looks this way</span></div>
+            {result.chemistry.map((it,i)=>(<div className="teach-item" key={i}><div className="teach-q">{it.q}</div><div className="teach-a">{it.a}</div></div>))}
+            <div className="stage-label" style={{marginTop:30}} id="tour-confidence"><span className="n">05</span><span className="t">Confidence</span></div>
+            <div className="conf-meter">{[0,1,2].map(i => <div key={i} className={"conf-seg " + (i < result.confidence.segs ? "on " + result.confidence.level : "")}></div>)}</div>
+            <div className="conf-text"><b>{result.confidence.label}.</b> {result.confidence.text}</div>
+            <div className="conf-text" style={{marginTop:12}}>{biologicalRead(result)}</div>
+            <div className="stage-label" style={{marginTop:30}} id="tour-mentor"><span className="n">06</span><span className="t">Design a better experiment</span></div>
+            <div style={{fontSize:12, color:"var(--dim)", fontWeight:300, lineHeight:1.55, marginBottom:12}}>What an experienced proteomics collaborator would try next.</div>
+            {result.mentor.map((it,i)=>(<div className="mentor-item" key={i}><div className="mentor-q">{it.q}</div><div className="mentor-a">{it.a}</div></div>))}
+            <Limitations />
+          </> : <div className="empty">{result.empty || !result.ok
+              ? <span><b>Interpretation appears once PEPTIDE has both a peptide sequence and an observed spectrum.</b> Enter a sequence to see the theoretical prediction; paste m/z,intensity peaks to unlock the reviewer questions, confidence judgement, and experiment suggestions.</span>
+              : <span><b>Theoretical prediction only.</b> Paste an observed MS/MS spectrum to compare experimental peaks against the predicted fragments and generate a full interpretation.</span>}
+            {result.ok && !result.hasSpectrum && <Limitations />}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModeBadge({ hasSpectrum }) { return hasSpectrum ? <span className="mode exp">Experimental interpretation</span> : <span className="mode theo">Theoretical prediction only</span>; }
+
+function Limitations() {
+  return (
+    <div style={{marginTop:34}}>
+      <div className="stage-label"><span className="n">·</span><span className="t">Assumptions & limitations</span></div>
+      <ul className="limits">
+        <li>This preview computes <b>b and y ions</b> primarily; a/c/z and internal/immonium ions are not modelled.</li>
+        <li><b>c/z ions for ETD</b> are not yet implemented — ETD spectra are reasoned about, not fully fragmented.</li>
+        <li><b>Post-translational modifications</b> are not yet applied to the masses (the architecture is in place; see the panel on the left).</li>
+        <li><b>Neutral-loss rules are heuristic</b> (water from S/T/E/D, ammonia from K/R/Q/N) and approximate real behaviour.</li>
+        <li>Matching is <b>not a substitute for a database search</b> with statistical (target–decoy / FDR) scoring.</li>
+        <li>PEPTIDE is for <b>interpretation, education, and manual validation</b> — a reasoning aid, not reporting-grade identification software.</li>
+      </ul>
+    </div>
+  );
+}
+
+function shortVerdict(result) {
+  const m = result.metrics;
+  return m.coverage >= 70 && m.pctIntensity >= 50 ? "the spectrum broadly supports " + result.residues.join("") + "."
+    : (m.coverage >= 40 || m.pctIntensity >= 35) ? "partial support for " + result.residues.join("") + "; read the questions below."
+    : "the evidence for " + result.residues.join("") + " is currently weak.";
+}
+function biologicalRead(result) {
+  const m = result.metrics; const seq = result.residues.join("");
+  if (m.coverage >= 70) return <span>With continuous coverage you could report this identification and begin to localise a modification if one were present — site assignment needs matched ions flanking the modified residue on both sides, which this coverage can start to provide.</span>;
+  if (m.coverage >= 40) return <span>Enough to shortlist {seq}, not to make a biological claim. Before attributing a function, modification or variant, close the ladder gaps — an ambiguous region is exactly where a wrong residue hides.</span>;
+  return <span>Don't draw biological conclusions yet. The backbone is too sparsely supported to separate {seq} from near-isobaric alternatives; treat it as an unproven candidate.</span>;
+}
+function Chip({ on, cls, onClick, children }) { return <span className={"chip " + (on ? "on " + (cls||"") : "")} onClick={onClick}>{children}</span>; }
+
+function CoverageMap({ residues, cov, frags, hasSpectrum, selResidue, mapFocus, setSelResidue }) {
+  const n = residues.length;
+  const focusSet = mapFocus ? mapFocus.residues : null; const focusBond = mapFocus ? mapFocus.bond : null;
+  let note = null;
+  if (!hasSpectrum) {
+    note = <div className="cov-hint">No observed spectrum yet, so no bond is confirmed — this shows the residues only. Paste a spectrum to light up the bonds your data actually supports.</div>;
+  } else if (mapFocus && mapFocus.kind !== "residue" && focusBond) {
+    const leftAA = residues[focusBond-1], rightAA = residues[focusBond];
+    note = <div className="cov-hint">The selected peak reports the <b style={{color:"var(--text)"}}>{leftAA}–{rightAA}</b> bond (after residue {focusBond}). Its <b style={{color: mapFocus.type==="b"?"var(--b-ion)":"var(--y-ion)"}}>{mapFocus.type}</b> fragment contains the highlighted residues — that is the stretch of sequence this one peak actually proves.</div>;
+  } else if (selResidue != null) {
+    const containing = frags.filter(f => fragmentContainsResidue(f, selResidue, n)); const matched = containing.filter(f => f.match).length; const aa = residues[selResidue-1];
+    note = <div className="cov-hint">Residue <b style={{color:"var(--text)"}}>{aa}{selResidue}</b> ({AA_NAME[aa]}) appears in <b style={{color:"var(--text)"}}>{containing.length}</b> theoretical fragments; <b style={{color:"var(--text)"}}>{matched}</b> were observed and are highlighted in the spectrum. {matched===0?"None were seen — this residue rests on no direct evidence.":"That is the direct evidence "+aa+selResidue+" is really present."} <span style={{color:"var(--focus)", cursor:"pointer"}} onClick={()=>setSelResidue(null)}>Clear</span></div>;
+  }
+  return (
+    <div className="cov-wrap">
+      <div className="coverage">
+        {residues.map((r, i) => { const pos = i + 1; const bHere = cov.bAfter.has(pos) && pos < n, yHere = cov.yBefore.has(pos) && pos < n; const foc = focusSet && focusSet.has(pos);
+          return (
+            <div className={"cov-res" + (selResidue===pos ? " sel" : "") + (foc ? " foc" : "")} key={i} onClick={() => setSelResidue(selResidue===pos ? null : pos)} title={"Residue " + pos + " — " + AA_NAME[r] + ". Click to trace its evidence."}>
+              <div className="aa" style={foc?{color: mapFocus.type==="b"?"var(--b-ion)":(mapFocus.type==="y"?"var(--y-ion)":"var(--text)")}:null}>{r}</div>
+              <div className="idx">{pos}</div>
+              {bHere && <div className="btick"></div>}{yHere && <div className="ytick"></div>}
+              {focusBond===pos && <div className="cleave"></div>}
+            </div>
+          ); })}
+      </div>
+      <div className="cov-legend">
+        <span><span className="sw-b">▎</span> b-ion cleavage (reads N→C)</span>
+        <span><span className="sw-y">▎</span> y-ion cleavage (reads C→N)</span>
+        <span>Coverage {(cov.coverage*100).toFixed(0)}% · {cov.covered}/{cov.sites} bonds</span>
+      </div>
+      {note || <div className="cov-hint">A tick means a fragment pins that bond. Ticks on both sides of a residue bracket it from both directions. Click a residue to trace its evidence, or click a peak above to see which bond it proves.</div>}
+    </div>
+  );
+}
+
+function FragmentationDiagram({ residues, bond, type }) {
+  const n = residues.length; const [broken, setBroken] = useState(false);
+  useEffect(() => { setBroken(false); const id = setTimeout(() => setBroken(true), 160); return () => clearTimeout(id); }, [bond, type]);
+  const W = Math.max(360, n * 46), H = 96, r = 15, padX = 26, chainY = 42; const step = (W - 2*padX) / Math.max(n - 1, 1); const xOf = (i) => padX + i * step;
+  const leftAA = residues[bond-1], rightAA = residues[bond];
+  return (
+    <div className="fragdiag">
+      <svg viewBox={"0 0 " + W + " " + H}>
+        {residues.slice(0, n-1).map((_, i) => { const here = i === bond - 1;
+          return <line key={"b"+i} className="fd-bond" x1={xOf(i)+r} y1={chainY} x2={xOf(i+1)-r} y2={chainY} stroke={here && broken ? "#e8695f" : "#2a2d33"} strokeWidth={here && broken ? 1 : 2} strokeDasharray={here && broken ? "3 4" : "0"} opacity={here && broken ? 0.3 : 1} />; })}
+        {residues.map((aa, i) => { const isLeft = i <= bond - 1; const retained = (type === "b") ? isLeft : !isLeft; const dx = broken ? (isLeft ? -12 : 12) : 0, dy = broken ? (isLeft ? -9 : 9) : 0; const col = broken ? (retained ? (type==="b"?"#e8695f":"#5b9bd5") : "#33363c") : "#3a3d44";
+          return <g key={"r"+i} className="fd-node" transform={"translate(" + dx + "," + dy + ")"}><circle cx={xOf(i)} cy={chainY} r={r} fill="#101114" stroke={col} strokeWidth="1.5" /><text x={xOf(i)} y={chainY+5} textAnchor="middle" fontFamily="var(--mono)" fontSize="13" fill={broken && !retained ? "#5a5d64" : "#edeef1"}>{aa}</text></g>; })}
+      </svg>
+      <div className="fd-cap">Backbone cleaves after residue {bond} ({leftAA}–{rightAA}); the {type==="b"?<b style={{color:"var(--b-ion)"}}>N-terminal (b)</b>:<b style={{color:"var(--y-ion)"}}>C-terminal (y)</b>} half (coloured) keeps the charge and is what you detect.</div>
+    </div>
+  );
+}
+
+function Inspector({ active, pinned, result, tol, onClear }) {
+  const residues = result.residues; const n = residues.length;
+  if (!active) return (
+    <div className="inspector"><div className="insp-eyebrow"><span>Inspector</span></div>
+      <div className="insp-empty">{result.hasSpectrum
+        ? "Fragmentation is a chain of physical events, not a lookup table. Click any peak in the spectrum — this panel reconstructs the exact bond that broke, shows where on the peptide it happened, explains why the ion is intense, and judges whether the match is trustworthy."
+        : "Hover any row in the fragment ledger below to see why that predicted ion exists and which backbone bond it would report. Add an observed spectrum to click real peaks."}</div></div>
+  );
+  if (active.kind === "fragment") {
+    const f = active.f; const ex = explainIon(f, residues);
+    return (
+      <div className="inspector">
+        <div className="insp-eyebrow"><span>Why this ion exists</span>{pinned && active===pinned ? <span style={{color:"var(--focus)", cursor:"pointer"}} onClick={onClear}>unpin</span> : <span>hovering</span>}</div>
+        <div className="insp-title" style={{color: f.type==="b"?"var(--b-ion)":"var(--y-ion)"}}>{f.type}{f.position}{f.loss||""} <span style={{color:"var(--dim)", fontSize:14}}>· {f.charge}+ · {f.seq}</span></div>
+        <div className="insp-sub">theoretical m/z {f.mz.toFixed(4)}{ex.matched ? " · observed " + ex.matched.mz.toFixed(4) : " · not observed"}</div>
+        <FragmentationDiagram residues={residues} bond={ex.bondAfter} type={f.type} />
+        <div className="insp-why" style={{marginTop:14}}>{ex.parts.map((p,i)=><p key={i}>{p.html}</p>)}</div>
+        <div className="insp-section"><div className="h">Why it matters</div><div className="insp-why"><p>{whyFragmentMatters(f, residues)}</p></div></div>
+        {ex.matched ? <div className="insp-section"><div className="h">Is the match trustworthy?</div><PpmWindow ppmErr={ex.matched.ppm} tol={tol} /></div>
+          : <div className="insp-section"><div className="h">Not observed</div><div className="insp-why" style={{color:"var(--dim)"}}><p>Absence is information: the bond this ion would report rests on other evidence — or none. See the mentor's "why wasn't it observed?" for the likely chemistry.</p></div></div>}
+      </div>
+    );
+  }
+  const peak = result.annotatedPeaks[active.idx];
+  if (!peak) return <div className="inspector"><div className="insp-empty">—</div></div>;
+  const maxInt = Math.max(...result.annotatedPeaks.map(p=>p.intensity),1);
+  const best = peak.annotations.length ? [...peak.annotations].sort((a,b)=>Math.abs(a.ppm)-Math.abs(b.ppm))[0] : null;
+  const bestBond = best ? (best.type==="b"?best.position:n-best.position) : null;
+  const reasons = peakIntensityReasons(peak, residues, result.annotatedPeaks, maxInt);
+  return (
+    <div className="inspector">
+      <div className="insp-eyebrow"><span>Peak · every explanation</span>{pinned && active===pinned ? <span style={{color:"var(--focus)", cursor:"pointer"}} onClick={onClear}>unpin</span> : <span>hovering</span>}</div>
+      <div className="insp-title"><span className="num">m/z {peak.mz.toFixed(4)}</span></div>
+      <div className="insp-sub">intensity {peak.intensity} · {(peak.intensity/maxInt*100).toFixed(0)}% of base peak</div>
+      {best && <FragmentationDiagram residues={residues} bond={bestBond} type={best.type} />}
+      {peak.annotations.length ? (
+        <div style={{marginTop: best?14:0}}>
+          <div className="insp-section" style={{borderTop:"none", paddingTop:0, marginTop:0}}>
+            <div className="h">{peak.annotations.length>1 ? "Candidate explanations ("+peak.annotations.length+")" : "What this peak is"}</div>
+            {peak.annotations.length>1 && <div className="insp-why" style={{marginBottom:6}}><p>Several ions fall within tolerance — the peak is ambiguous. The smallest-error, ladder-supported assignment is usually right, but not certainly.</p></div>}
+            {peak.annotations.slice().sort((a,b)=>Math.abs(a.ppm)-Math.abs(b.ppm)).map((a,i)=>(
+              <div className="anno-item" key={i}><div className="anno-head"><span className="lab" style={{color: a.loss?"var(--loss)":(a.type==="b"?"var(--b-ion)":"var(--y-ion)")}}>{a.label}</span><span className="ppm">{a.ppm>0?"+":""}{a.ppm.toFixed(1)} ppm</span></div>
+                <div className="anno-desc">{a.type==="b" ? "N-terminal, residues 1–"+a.position+" ("+a.seq+")" : "C-terminal, last "+a.position+" residues ("+a.seq+")"}{a.loss ? " with "+a.loss : ""} at {a.charge}+.</div></div>
+            ))}
+          </div>
+          {reasons.length>0 && <div className="insp-section"><div className="h">Why is this peak {peak.intensity>=0.5*maxInt?"intense":"here"}?</div>
+            <div className="reason-list">{reasons.map((r,i)=><div className="reason" key={i}><span className="mk">•</span><span>{r}</span></div>)}</div></div>}
+        </div>
+      ) : (
+        <div className="insp-why" style={{color:"var(--muted)", marginTop:6}}>
+          <p>No b or y ion (at your charges and losses) falls within <b>{tol.value} {tol.unit}</b> of this peak.{peak.intensity >= 0.25*maxInt ? <span> At this intensity that demands an explanation.</span> : null}</p>
+          <div className="insp-section"><div className="h">What could it be?</div><div className="reason-list">
+            <div className="reason"><span className="mk">•</span><span><b>a/c/z ions</b> from side reactions or a co-activated ETD channel.</span></div>
+            <div className="reason"><span className="mk">•</span><span><b>Internal fragment</b> — a double backbone cleavage, common in longer peptides.</span></div>
+            <div className="reason"><span className="mk">•</span><span><b>Immonium ion</b> — a single residue's side chain, diagnostic of composition.</span></div>
+            <div className="reason"><span className="mk">•</span><span><b>Higher charge state</b> or an unaccounted <b>modification</b> shifting the mass.</span></div>
+            <div className="reason"><span className="mk">•</span><span><b>Co-isolated peptide</b> — a second precursor fragmenting alongside this one.</span></div>
+          </div><div className="insp-why" style={{marginTop:8, color:"var(--dim)"}}><p>Persistent intense unexplained peaks are the single most common reason a confident-looking ID is wrong.</p></div></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PpmWindow({ ppmErr, tol }) {
+  const windowPpm = tol.unit === "ppm" ? tol.value : 20;
+  const span = Math.max(windowPpm * 1.25, Math.abs(ppmErr) * 1.25, 6);
+  const pct = (v) => 50 + (v / span) * 50; const tolLeft = pct(-windowPpm), tolRight = pct(windowPpm); const markPos = pct(Math.max(-span, Math.min(span, ppmErr)));
+  const good = Math.abs(ppmErr) <= 5, ok = Math.abs(ppmErr) <= 10; const col = good ? "var(--good)" : ok ? "var(--warn)" : "var(--bad)";
+  return (
+    <div className="ppmviz">
+      <div className="ends"><span>−{span.toFixed(0)}</span><span>0 ppm</span><span>+{span.toFixed(0)}</span></div>
+      <div className="axis"><div className="tol" style={{ left: tolLeft+"%", width: (tolRight-tolLeft)+"%" }}></div><div className="zero"></div>
+        <div className="mark" style={{ left: markPos+"%", background: col, boxShadow:"0 0 0 3px rgba(0,0,0,0.4)" }}></div>
+        <div className="lbl" style={{ left: markPos+"%", color: col }}>{ppmErr>0?"+":""}{ppmErr.toFixed(1)}</div></div>
+      <div className="verdict" style={{ color: col }}>{good ? "Within 5 ppm — mass-accurate, consistent with high-resolution data." : ok ? "5–10 ppm — acceptable but loose; check calibration." : ">10 ppm — large error; this match may be coincidental."}{tol.unit==="ppm" && <span style={{color:"var(--dim)"}}> Green = your ±{windowPpm} ppm window.</span>}</div>
+    </div>
+  );
+}
+
+function FragmentTable({ frags, n, selResidue, onHover, onPin }) {
+  return (
+    <div className="tablewrap">
+      <table>
+        <thead><tr><th className="l">Ion</th><th>Seq</th><th>z</th><th>Theo m/z</th><th>Loss</th><th>Obs m/z</th><th>ppm</th><th>Int</th></tr></thead>
+        <tbody>
+          {frags.map((f, i) => { const contains = selResidue != null && fragmentContainsResidue(f, selResidue, n); const dimmed = selResidue != null && !contains;
+            return (
+              <tr key={i} className={"frag " + (f.type==="b"?"b-row ":"y-row ") + (f.match?"matched ":"") + (contains?"contains ":"") + (dimmed?"dimmed":"")}
+                onMouseEnter={()=>onHover(f)} onMouseLeave={()=>onHover(null)} onClick={()=>onPin(f)} title="Click to inspect why this ion exists">
+                <td className="ion l">{f.type}{f.position}{f.charge>1?" "+f.charge+"+":""}</td><td className="l">{f.seq}</td><td className="dim">{f.charge}+</td>
+                <td>{f.mz.toFixed(4)}</td><td className="loss-tag">{f.loss||"—"}</td><td>{f.match ? f.match.mz.toFixed(4) : "—"}</td>
+                <td>{f.match ? (f.match.ppm>0?"+":"")+f.match.ppm.toFixed(1) : "—"}</td><td>{f.match ? f.match.intensity : "—"}</td>
+              </tr>
+            ); })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
