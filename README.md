@@ -132,7 +132,7 @@ no separate dataset file is shipped with the repository yet. the application inc
 703.31,28    310.10,35    201.05,12
 ```
 
-this example is intended for demonstration and teaching; it is a hand-constructed peak list, not an experimental acquisition.
+this example is intended for learning; it is a hand-constructed peak list, not an experimental acquisition.
 
 ---
 
@@ -140,7 +140,7 @@ this example is intended for demonstration and teaching; it is a hand-constructe
 
 a fragment spectrum is only useful if it lets you make — or withhold — a biological claim with the right level of confidence. PEPTIDE frames its output accordingly:
 
-- **continuous, bilateral coverage** (b and y ions bracketing each residue) is the basis for reading a sequence with confidence and for beginning to localise a modification, which additionally requires matched ions flanking the modified residue.
+- **continuous, bilateral coverage** (b and y ions bracketing each residue) is the basis for reading a sequence with confidence and for beginning to localize a modification, which additionally requires matched ions flanking the modified residue.
 - **partial or one-sided coverage** may be enough to shortlist a peptide but not to attribute a function, variant, or modification to it — ambiguous regions are where a wrong residue or misplaced modification hides.
 - **sparse coverage or unexplained intense peaks** should prompt caution: near-isobaric sequences and co-isolated precursors can mimic weak evidence.
 
