@@ -1,10 +1,10 @@
 # PEPTIDE
 
-an interactive interpreter for reasoning about peptide MS/MS fragmentation.
+an interactive interpreter for reasoning about peptide MS/MS fragmentation. PEPTIDE allows users to inspect a tandem mass (MS/MS) spectrum and reason about whether a proposed peptide identification should be *trusted or distrusted*. it calculates theoretical b/y fragment ions, matches them to an observed spectrum, and — rather than stopping at annotation — explains **why** each ion exists, weighs the evidence a reviewer would demand, and suggests what experiment to run next.
 
 ![Alt text description](landing_page.png)
 
-PEPTIDE allows users to inspect a tandem mass (MS/MS) spectrum and reason about whether a proposed peptide identification should be *trusted or distrusted*. it calculates theoretical b/y fragment ions, matches them to an observed spectrum, and — rather than stopping at annotation — explains **why** each ion exists, weighs the evidence a reviewer would demand, and suggests what experiment to run next.
+
 ---
 
 ## Overview
