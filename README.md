@@ -50,7 +50,7 @@ open peptide.html      # macOS
 
 alternatively, download `peptide.html` and open it directly, or serve the folder locally (e.g. `python3 -m http.server`) and visit the page.
 
-**Note:** the page loads React, Plotly, and Babel from a public CDN, so an internet connection is required the first time it is opened. No data leaves the browser — all calculation happens client-side.
+**note:** the page loads React, Plotly, and Babel from a public CDN, so an internet connection is required the first time it is opened. No data leaves the browser — all calculation happens client-side.
 
 ---
 
@@ -103,8 +103,6 @@ these values follow standard elemental monoisotopic masses as used throughout pr
 
 ---
 
-## screenshots
-
 ![Alt text description](interpretation_dashboard.png)
 
 | Region | Stage | Contents |
@@ -114,6 +112,17 @@ these values follow standard elemental monoisotopic masses as used throughout pr
 | right | interpretation → confidence | conclusions, reviewer questions, chemistry, confidence, experiment suggestions |
 
 ---
+
+## biological interpretation
+
+a fragment spectrum is only useful if it lets you make — or withhold — a biological claim with the right level of confidence. PEPTIDE frames its output accordingly:
+
+- **continuous, bilateral coverage** (b and y ions bracketing each residue) is the basis for reading a sequence with confidence and for beginning to localize a modification, which additionally requires matched ions flanking the modified residue.
+- **partial or one-sided coverage** may be enough to shortlist a peptide but not to attribute a function, variant, or modification to it — ambiguous regions are where a wrong residue or misplaced modification hides.
+- **sparse coverage or unexplained intense peaks** should prompt caution: near-isobaric sequences and co-isolated precursors can mimic weak evidence.
+
+the tool makes these consequences explicit so that interpretation is tied to evidence rather than to a single score.
+
 
 ## downloadable outputs
 
@@ -136,18 +145,6 @@ this example is intended for learning; it is a hand-constructed peak list, not a
 
 ---
 
-## biological interpretation
-
-a fragment spectrum is only useful if it lets you make — or withhold — a biological claim with the right level of confidence. PEPTIDE frames its output accordingly:
-
-- **continuous, bilateral coverage** (b and y ions bracketing each residue) is the basis for reading a sequence with confidence and for beginning to localize a modification, which additionally requires matched ions flanking the modified residue.
-- **partial or one-sided coverage** may be enough to shortlist a peptide but not to attribute a function, variant, or modification to it — ambiguous regions are where a wrong residue or misplaced modification hides.
-- **sparse coverage or unexplained intense peaks** should prompt caution: near-isobaric sequences and co-isolated precursors can mimic weak evidence.
-
-the tool makes these consequences explicit so that interpretation is tied to evidence rather than to a single score.
-
----
-
 ## intended use
 
 PEPTIDE is intended for:
@@ -156,7 +153,7 @@ PEPTIDE is intended for:
 - **teaching** the chemistry and logic of peptide fragmentation, and
 - **critical review** of a proposed identification before or alongside a formal search.
 
-it is **not** intended as a replacement for validated database search engines, statistical confidence estimation (e.g. target–decoy FDR), or reporting-grade identification software. Any conclusion drawn in PEPTIDE should be confirmed with established tools and orthogonal experimental evidence. Treat it as an expert collaborator that helps you reason — not as an authority that certifies results.
+it is **not** intended as a replacement for validated database search engines, statistical confidence estimation (e.g. target–decoy FDR), or reporting-grade identification software. any conclusion drawn in PEPTIDE should be confirmed with established tools and experimental evidence.
 
 ---
 
