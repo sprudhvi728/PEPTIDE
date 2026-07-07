@@ -2,15 +2,16 @@
 
 **an interactive interpreter for reasoning about peptide MS/MS fragmentation.**
 
-PEPTIDE allows users to inspect a tandem mass (MS/MS) spectrum and reason about whether a proposed peptide identification should be *trusted or distrusted*. It calculates theoretical b/y fragment ions, matches them to an observed spectrum, and — rather than stopping at annotation — explains **why** each ion exists, weighs the evidence a reviewer would demand, and suggests what experiment to run next.
+![Alt text description](landing_page.png)
 
+PEPTIDE allows users to inspect a tandem mass (MS/MS) spectrum and reason about whether a proposed peptide identification should be *trusted or distrusted*. it calculates theoretical b/y fragment ions, matches them to an observed spectrum, and — rather than stopping at annotation — explains **why** each ion exists, weighs the evidence a reviewer would demand, and suggests what experiment to run next.
 ---
 
 ## Overview
 
 most fragment-ion tools answer *"what is this peak?"* PEPTIDE is built around a different question: *"how much should I believe this identification, and why?"*
 
-the application is a single, self-contained web page. Given a peptide sequence and an observed peak list, it:
+the application is a single, self-contained web page. given a peptide sequence and an observed peak list, it:
 
 - computes theoretical fragment ions from monoisotopic amino-acid masses,
 - matches them to observed peaks within a user-defined tolerance,
@@ -68,7 +69,7 @@ PEPTIDE currently accepts two inputs, entered directly in the application:
 
    whitespace-separated values are also accepted. If no spectrum is provided, PEPTIDE displays the theoretical prediction only.
 
-**direct import of vendor or repository files (mzML, MGF) is not yet implemented.** See the [Roadmap](#roadmap). Support is *designed* to parse mzML in a future release; compatibility may vary depending on vendor and export format, and future testing will include larger vendor-converted mzML files.
+**direct import of vendor or repository files (mzML, MGF) is not yet implemented.** See the [Roadmap](#roadmap). support is *designed* to parse mzML in a future release; compatibility may vary depending on vendor and export format, and future testing will include larger vendor-converted mzML files.
 
 ---
 
@@ -104,20 +105,20 @@ these values follow standard elemental monoisotopic masses as used throughout pr
 
 ## screenshots
 
-*screenshots will be added here as the interface stabilises.* the application has three regions:
+![Alt text description](interpretation_dashboard.png)
 
 | Region | Stage | Contents |
 | --- | --- | --- |
-| Left | Hypothesis | sequence, precursor charge, fragmentation method, ion/charge selection, tolerance, spectrum input |
-| Centre | Observation → Evidence | annotated interactive spectrum, coverage map, cleavage inspector, fragment ledger |
-| Right | Interpretation → Confidence | conclusions, reviewer questions, chemistry, confidence, experiment suggestions |
+| left | hypothesis | sequence, precursor charge, fragmentation method, ion/charge selection, tolerance, spectrum input |
+| centre | observation → evidence | annotated interactive spectrum, coverage map, cleavage inspector, fragment ledger |
+| right | interpretation → confidence | conclusions, reviewer questions, chemistry, confidence, experiment suggestions |
 
 ---
 
 ## downloadable outputs
 
 - **annotated spectrum (PNG)** — the interactive plot includes a toolbar (top-right) with a *download as PNG* option.
-- **fragment table and reasoning export (CSV / report)** — planned; see the [Roadmap](#roadmap). at present the fragment ledger and interpretation are viewed in the browser.
+- **fragment table and reasoning export (CSV / report)**
 
 ---
 
