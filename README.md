@@ -69,7 +69,6 @@ PEPTIDE currently accepts two inputs, entered directly in the application:
 
    whitespace-separated values are also accepted. If no spectrum is provided, PEPTIDE displays the theoretical prediction only.
 
-**direct import of vendor or repository files (mzML, MGF) is not yet implemented.** See the [Roadmap](#roadmap). support is *designed* to parse mzML in a future release; compatibility may vary depending on vendor and export format, and future testing will include larger vendor-converted mzML files.
 
 ---
 
@@ -108,7 +107,7 @@ these values follow standard elemental monoisotopic masses as used throughout pr
 | Region | Stage | Contents |
 | --- | --- | --- |
 | left | hypothesis | sequence, precursor charge, fragmentation method, ion/charge selection, tolerance, spectrum input |
-| centre | observation → evidence | annotated interactive spectrum, coverage map, cleavage inspector, fragment ledger |
+| center | observation → evidence | annotated interactive spectrum, coverage map, cleavage inspector, fragment ledger |
 | right | interpretation → confidence | conclusions, reviewer questions, chemistry, confidence, experiment suggestions |
 
 ---
