@@ -140,7 +140,6 @@ no separate dataset file is shipped with the repository yet. the application inc
 703.31,28    310.10,35    201.05,12
 ```
 
-this example is intended for learning; it is a hand-constructed peak list, not an experimental acquisition.
 
 ---
 
@@ -154,6 +153,7 @@ PEPTIDE is intended for:
 
 it is **not** intended as a replacement for validated database search engines, statistical confidence estimation (e.g. target–decoy FDR), or reporting-grade identification software. any conclusion drawn in PEPTIDE should be confirmed with established tools and experimental evidence.
 
+This tool was developed with Claude Code; the tool design, analysis workflows, and statistical logic are my own.
 ---
 
 ## references
