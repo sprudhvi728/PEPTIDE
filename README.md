@@ -1,6 +1,6 @@
 # PEPTIDE
 
-an interactive interpreter for reasoning about peptide MS/MS fragmentation. PEPTIDE allows users to inspect a tandem mass (MS/MS) spectrum and reason about whether a proposed peptide identification should be *trusted or distrusted*. it calculates theoretical b/y fragment ions, matches them to an observed spectrum, and — rather than stopping at annotation — explains **why** each ion exists, weighs the evidence a reviewer would demand, and suggests what experiment to run next.
+an interactive interpreter for reasoning about peptide MS/MS fragmentation. PEPTIDE allows users to inspect a tandem mass (MS/MS) spectrum and reason about whether a proposed peptide identification should be trusted or distrusted. it calculates theoretical b/y fragment ions and matches them to an observed spectrum. Rather than stopping at annotation, it explains why each ion exists, weighs the evidence a reviewer would demand, and suggests what experiment to run next.
 
 ![Alt text description](landing_page.png)
 
@@ -9,15 +9,13 @@ an interactive interpreter for reasoning about peptide MS/MS fragmentation. PEPT
 
 ## Overview
 
-most fragment-ion tools answer *"what is this peak?"* PEPTIDE is built around a different question: *"how much should I believe this identification, and why?"*
+most fragment-ion tools answer “what is this peak?” PEPTIDE is built around a different question: “how much should I believe this identification, and why?”
 
 the application is a single, self-contained web page. given a peptide sequence and an observed peak list, it:
 
-- computes theoretical fragment ions from monoisotopic amino-acid masses,
-- matches them to observed peaks within a user-defined tolerance,
-- draws an interactive, annotated spectrum and a sequence-coverage map,
-- explains the underlying fragmentation chemistry in plain language, and
-- summarises the strength of the evidence
+* computes theoretical fragment ions from monoisotopic amino-acid masses
+* matches them to observed peaks within a user-defined tolerance
+* draws an interactive, annotated spectrum and a sequence-coverage map
 
 the interface follows the scientific method as a workflow: **Hypothesis → Observation → Evidence → Interpretation → Confidence.**
 
@@ -50,7 +48,7 @@ open peptide.html      # macOS
 
 alternatively, download `peptide.html` and open it directly, or serve the folder locally (e.g. `python3 -m http.server`) and visit the page.
 
-**note:** the page loads React, Plotly, and Babel from a public CDN, so an internet connection is required the first time it is opened. No data leaves the browser — all calculation happens client-side.
+**note:** the page loads React, Plotly, and Babel from a public CDN, so an internet connection is required the first time it is opened. No data leaves the browser.
 
 ---
 
@@ -67,7 +65,7 @@ PEPTIDE currently accepts two inputs, entered directly in the application:
    376.17,100
    ```
 
-   whitespace-separated values are also accepted. If no spectrum is provided, PEPTIDE displays the theoretical prediction only.
+   whitespace-separated values are also accepted. If no spectrum is provided, PEPTIDE displays only the theoretical prediction.
 
 
 ---
@@ -114,13 +112,13 @@ these values follow standard elemental monoisotopic masses as used throughout pr
 
 ## biological interpretation
 
-a fragment spectrum is only useful if it lets you make — or withhold — a biological claim with the right level of confidence. PEPTIDE frames its output accordingly:
+a fragment spectrum is only useful if it lets you make, or withhold, a biological claim with the right level of confidence. PEPTIDE frames its output accordingly:
 
-- **continuous, bilateral coverage** (b and y ions bracketing each residue) is the basis for reading a sequence with confidence and for beginning to localize a modification, which additionally requires matched ions flanking the modified residue.
-- **partial or one-sided coverage** may be enough to shortlist a peptide but not to attribute a function, variant, or modification to it — ambiguous regions are where a wrong residue or misplaced modification hides.
-- **sparse coverage or unexplained intense peaks** should prompt caution: near-isobaric sequences and co-isolated precursors can mimic weak evidence.
+- continuous, bilateral coverage (b and y ions bracketing each residue) is the basis for reading a sequence with confidence and for beginning to localize a modification, which additionally requires matched ions flanking the modified residue.
+- partial or one-sided coverage may be enough to shortlist a peptide but not to attribute a function, variant, or modification to it — ambiguous regions are where a wrong residue or misplaced modification hides.
+- sparse coverage or unexplained intense peaks should prompt caution: near-isobaric sequences and co-isolated precursors can mimic weak evidence.
 
-the tool makes these consequences explicit so that interpretation is tied to evidence rather than to a single score.
+the tool makes these consequences explicit so interpretation is tied to evidence rather than to a single score.
 
 
 ## downloadable outputs
@@ -130,30 +128,17 @@ the tool makes these consequences explicit so that interpretation is tied to evi
 
 ---
 
-## example dataset
-
-no separate dataset file is shipped with the repository yet. the application includes a **built-in worked example** (the *Load worked example* button), using the peptide `PEPTIDE` with the following illustrative singly-charged peak list:
-
-```
-98.06,15     227.10,40    324.16,22    425.20,58    538.29,30
-148.06,45    263.09,80    376.17,100   477.22,66    574.27,52
-703.31,28    310.10,35    201.05,12
-```
-
-
----
-
 ## intended use
 
 PEPTIDE is intended for:
 
 - **hypothesis generation** and manual inspection of MS/MS spectra,
-- **teaching** the chemistry and logic of peptide fragmentation, and
 - **critical review** of a proposed identification before or alongside a formal search.
 
-it is **not** intended as a replacement for validated database search engines, statistical confidence estimation (e.g. target–decoy FDR), or reporting-grade identification software. any conclusion drawn in PEPTIDE should be confirmed with established tools and experimental evidence.
-
+ **not** intended as a replacement for validated database search engines.
+ 
 This tool was developed with Claude Code; the tool design, analysis workflows, and statistical logic are my own.
+
 ---
 
 ## references
